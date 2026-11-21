@@ -128,7 +128,18 @@ enum Dialogue {
 
     // Calendar
     static func meeting(_ title: String, minutes: Int) -> String {
-        minutes == 0 ? "📅 \(title) is starting now!" : "📅 \(title) in \(minutes) min!"
+        minutes == 0 ? "📅 \(title) is starting now!" : "📅 \(title) in \(inTime(minutes))!"
+    }
+
+    /// "5 min", "1 hr", "1 hr 30 min", "2 days".
+    static func inTime(_ minutes: Int) -> String {
+        if minutes < 60 { return "\(minutes) min" }
+        if minutes < 24 * 60 {
+            let h = minutes / 60, m = minutes % 60
+            return m == 0 ? "\(h) hr" : "\(h) hr \(m) min"
+        }
+        let days = Int((Double(minutes) / (24 * 60)).rounded())
+        return days == 1 ? "1 day" : "\(days) days"
     }
 
     // Focus sessions

@@ -71,6 +71,7 @@ keystrokes, your screen or your calendar.
 - **Gentle reminders**: water, posture and eye-rest nudges at intervals you choose, plus a stretch after 50 minutes of work. They count time you are actually at your Mac and wait for calls and focus sessions to end
 - **Daily check-in**: a Today tab with your day in numbers (time at the Mac, typing, focus sessions, breaks), and a recap at 6 pm and the next morning
 - **Calendar alerts** (optional): a heads-up five minutes before an event and as it starts. This is the only feature that asks for a permission
+- **Google Calendar** (optional): sign in from Settings › Reminders and the pet reads out each event's own notifications when they fall due (10 minutes before, 30 minutes before, a day before… whatever is set in Google Calendar, or the calendar's defaults), plus a "starting now" if you like. It syncs every five minutes with read-only access, skips declined and cancelled events, and catches up on a reminder missed while the Mac was asleep. The sign-in is kept in the Keychain and event titles are never sent to the AI server. You need an OAuth client of type *Desktop app* from Google Cloud Console with the Google Calendar API turned on: paste its ID and secret in Settings, or ship them in `Support/Info.plist` as `GoogleClientID` and `GoogleClientSecret`
 
 **Moves around your whole screen**
 - Walks the Dock, **climbs the left and right edges**, crawls along the top, and comes back down

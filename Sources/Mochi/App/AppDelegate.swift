@@ -45,6 +45,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }.store(in: &cancellables)
 
+        GoogleCalendar.shared.start()
+        PetSettings.shared.$googleCalendarAlerts.dropFirst().receive(on: DispatchQueue.main).sink { on in
+            if on { GoogleCalendar.shared.sync() }
+        }.store(in: &cancellables)
+
         watchPower()
         if CommandLine.arguments.contains("--settings") { settingsWindow.show() }
     }

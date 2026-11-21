@@ -173,12 +173,31 @@ extension PetController {
         say("You've been at it for a while. Time to stretch! 🧘", force: true, seconds: 7)
     }
 
+    /// Calendar alerts from two places: Google Calendar (each event's own notification times, checked every
+    /// second) and the calendars on this Mac (five minutes ahead and at the start, checked every 30 s).
+    /// When both have the same event, it is said once; several at once are said one after another.
     func checkCalendar(_ now: Date) {
-        guard settings.calendarAlerts, now.timeIntervalSince(lastCalendarCheck) >= 30 else { return }
-        lastCalendarCheck = now
-        guard let alert = calendar.due(now: now).first else { return }
-        say(Dialogue.meeting(alert.title, minutes: alert.minutes), force: true, seconds: 7)
+        if settings.googleCalendarAlerts {
+            for a in GoogleCalendar.shared.due(now: now) { queueMeeting(a.title, minutes: a.minutesLeft(now), now) }
+        }
+        if settings.calendarAlerts, now.timeIntervalSince(lastCalendarCheck) >= 30 {
+            lastCalendarCheck = now
+            for a in calendar.due(now: now) { queueMeeting(a.title, minutes: a.minutes, now) }
+        }
+        guard !meetingQueue.isEmpty, now.timeIntervalSince(lastMeetingSaid) >= 8 else { return }
+        lastMeetingSaid = now
+        let line = meetingQueue.removeFirst()
+        if action == .sleep, canAct { action = .idle; remaining = 1 }     // wake up to say it
         if canAct { apply(Decision(action: .happy, duration: 2)) }
+        say(line, force: true, seconds: 8)                                // said last, so nothing replaces it
+    }
+
+    func queueMeeting(_ title: String, minutes: Int, _ now: Date) {
+        let key = "\(title.lowercased())|\(minutes)"
+        recentMeetings = recentMeetings.filter { now.timeIntervalSince($0.value) < 180 }
+        guard recentMeetings[key] == nil else { return }
+        recentMeetings[key] = now
+        meetingQueue.append(Dialogue.meeting(title, minutes: minutes))
     }
 
     /// Turns calendar alerts on, asking macOS for access the first time. `done(false)` means access was refused.

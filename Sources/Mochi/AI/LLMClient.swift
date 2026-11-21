@@ -171,12 +171,13 @@ struct LLMClient {
     }
 }
 
-/// The API key lives in the login keychain, not in the preferences file.
+/// Secrets live in the login keychain, not in the preferences file: the AI server's API key, and the
+/// Google Calendar sign-in. Each has its own item, so reading one never touches the others.
 enum Keychain {
-    private static let service = "com.mochi.pet.llm"
-    private static let account = "apiKey"
+    static let llm = "com.mochi.pet.llm"
+    static let google = "com.mochi.pet.google"
 
-    static func read() -> String {
+    static func read(service: String = llm, account: String = "apiKey") -> String {
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
                                 kSecAttrService as String: service,
                                 kSecAttrAccount as String: account,
@@ -187,7 +188,7 @@ enum Keychain {
         return String(decoding: data, as: UTF8.self)
     }
 
-    static func write(_ value: String) {
+    static func write(_ value: String, service: String = llm, account: String = "apiKey") {
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
                                 kSecAttrService as String: service,
                                 kSecAttrAccount as String: account]
