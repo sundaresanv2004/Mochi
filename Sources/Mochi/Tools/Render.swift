@@ -78,14 +78,17 @@ extension Render {
         pet.lastSlow = .distantFuture
         for _ in 0..<(120 * 30) { pet.tick(1.0 / 30) }
         for pane in [DebugTab.Pane.activity, .log] {
-            let view = DebugTab(settings: s, pane: pane).padding(24).frame(width: SettingsView.size.width - 198)
-            snapshot(view, to: path.replacingOccurrences(of: ".png", with: "-debug-\(pane == .log ? "log" : "readings").png"))
+            for dark in [false, true] {
+                let view = DebugTab(settings: s, pane: pane).padding(24).frame(width: SettingsView.size.width - 198)
+                let name = "-debug-\(pane == .log ? "log" : "readings")\(dark ? "-dark" : "").png"
+                snapshot(view, to: path.replacingOccurrences(of: ".png", with: name), dark: dark)
+            }
         }
     }
 
-    private static func snapshot<V: View>(_ view: V, to path: String) {
+    private static func snapshot<V: View>(_ view: V, to path: String, dark: Bool = false) {
         let host = NSHostingView(rootView: view.background(Color(nsColor: .windowBackgroundColor)))
-        host.appearance = NSAppearance(named: .aqua)
+        host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         host.frame = NSRect(origin: .zero, size: host.fittingSize)
         let win = NSWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: false)
         win.contentView = host

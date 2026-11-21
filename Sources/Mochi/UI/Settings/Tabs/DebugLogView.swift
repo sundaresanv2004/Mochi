@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 
 /// The Debug page's event log: what the pets did and why, newest first, with filters, search and export.
+/// Laid out like the other settings pages: a titled card of rows, with a short note underneath.
 struct DebugLogView: View {
     @ObservedObject var log = DebugLog.shared
 
@@ -25,57 +26,51 @@ struct DebugLogView: View {
 
     var body: some View {
         let list = shown
-        VStack(alignment: .leading, spacing: 10) {
-            toolbar
-            Card {
-                if list.isEmpty {
-                    Text(source.isEmpty ? "Nothing has happened yet. Events show up here as the pets go about their day."
-                                        : "No events match the filter.")
-                        .font(.callout).foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: 120)
-                        .padding(14)
-                } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0) {
-                            ForEach(list.reversed()) { e in
-                                row(e)
-                                Divider().padding(.leading, 40)
-                            }
+        CardSection(title: "Recent events", footer: footer(list.count)) {
+            controls
+            Divider()
+            if list.isEmpty {
+                Text(source.isEmpty ? "Nothing yet. Events show up here as the pets go about their day."
+                                    : "No events match.")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .padding(14)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(list.reversed().enumerated()), id: \.element.id) { i, e in
+                            if i > 0 { Divider().padding(.leading, 48) }
+                            row(e)
                         }
                     }
-                    .frame(height: 360)
                 }
+                .frame(height: 340)
             }
-            Text(footer(list.count))
-                .font(.caption).foregroundStyle(.secondary)
         }
     }
 
     private func footer(_ count: Int) -> String {
-        var s = "Showing \(count) of \(source.count) events, newest first. The last \(DebugLog.capacity) are kept while Mochi runs; nothing is saved unless you save it."
-        if frozen != nil { s = "Paused. " + s }
-        return s
+        let what = count == source.count ? "\(count) events" : "\(count) of \(source.count) events"
+        return (frozen == nil ? "" : "Paused. ")
+            + "\(what), newest first. The last \(DebugLog.capacity) are kept until Mochi quits. Click an event with \u{203A} for its details."
     }
 
-    // MARK: Toolbar
+    // MARK: Controls
 
-    private var toolbar: some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 5) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search events", text: $search).textFieldStyle(.plain)
-                if !search.isEmpty {
-                    Button { search = "" } label: { Image(systemName: "xmark.circle.fill") }
-                        .buttonStyle(.plain).foregroundStyle(.secondary)
-                        .accessibilityLabel("Clear search")
-                }
-            }
-            .padding(.horizontal, 8).padding(.vertical, 5)
-            .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 7))
+    private var filterLabel: String {
+        let all = DebugLog.Category.allCases.count
+        if hidden.isEmpty { return "All kinds" }
+        if hidden.count == all - 1, let only = DebugLog.Category.allCases.first(where: { !hidden.contains($0) }) { return only.label }
+        return "\(all - hidden.count) of \(all) kinds"
+    }
 
-            Menu {
+    private var controls: some View {
+        HStack(spacing: 10) {
+            TextField("Search events", text: $search)
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: .infinity)
+
+            Menu(filterLabel) {
                 Button("Show all") { hidden = [] }
-                Button("Hide all") { hidden = Set(DebugLog.Category.allCases) }
                 Divider()
                 ForEach(DebugLog.Category.allCases) { c in
                     Toggle(isOn: Binding(get: { !hidden.contains(c) },
@@ -83,40 +78,37 @@ struct DebugLogView: View {
                         Label(c.label, systemImage: c.symbol)
                     }
                 }
-            } label: {
-                Label(hidden.isEmpty ? "All events" : "\(DebugLog.Category.allCases.count - hidden.count) of \(DebugLog.Category.allCases.count) kinds",
-                      systemImage: "line.3.horizontal.decrease.circle")
-            }
-            .fixedSize()
-
-            Button { frozen = frozen == nil ? log.entries : nil } label: {
-                Image(systemName: frozen == nil ? "pause.fill" : "play.fill")
-            }
-            .help(frozen == nil ? "Pause the list (events are still recorded)" : "Follow new events again")
-            .accessibilityLabel(frozen == nil ? "Pause" : "Resume")
-
-            Menu {
-                Button("Copy shown events") { copy(shown) }
-                Button("Copy everything") { copy(source) }
                 Divider()
-                Button("Save to a file…") { save(source) }
-            } label: {
-                Image(systemName: "square.and.arrow.up")
+                ForEach(DebugLog.Category.allCases) { c in
+                    Button("Only \(c.label.lowercased())") { hidden = Set(DebugLog.Category.allCases).subtracting([c]) }
+                }
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .accessibilityLabel("Kinds of event shown: \(filterLabel)")
+
+            Button(frozen == nil ? "Pause" : "Resume") { frozen = frozen == nil ? log.entries : nil }
+                .help(frozen == nil ? "Stop the list moving while you read (events are still recorded)" : "Follow new events again")
+
+            Menu("Export") {
+                Button("Copy shown events") { copy(shown) }
+                Button("Copy all events") { copy(source) }
+                Divider()
+                Button("Save all to a file…") { save(source) }
             }
             .fixedSize()
-            .help("Copy or save the log for a bug report")
             .disabled(source.isEmpty)
 
-            Button {
+            Button("Clear") {
                 log.clear()
                 frozen = nil
                 expanded = []
-            } label: { Image(systemName: "trash") }
-            .help("Clear the log")
-            .accessibilityLabel("Clear the log")
+            }
             .disabled(log.entries.isEmpty)
         }
-        .controlSize(.small)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .frame(minHeight: 46)
     }
 
     // MARK: Rows
@@ -134,43 +126,53 @@ struct DebugLogView: View {
         }
     }
 
+    private func meta(_ e: DebugLog.Entry) -> String {
+        [DebugLog.clock.string(from: e.time), e.pet, e.category.label].compactMap { $0 }.joined(separator: " · ")
+    }
+
     private func row(_ e: DebugLog.Entry) -> some View {
         let open = expanded.contains(e.id)
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                IconBadge(symbol: e.category.symbol, tint: tint(e.category), size: 18)
-                    .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
-                Text(DebugLog.clock.string(from: e.time))
-                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
-                (Text(e.pet.map { "\($0)  " } ?? "").bold() + Text(e.message))
-                    .font(.system(size: 12))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
-                Spacer(minLength: 4)
+        return VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .top, spacing: 12) {
+                IconBadge(symbol: e.category.symbol, tint: tint(e.category), size: 22)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(e.message)
+                        .font(.callout)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(meta(e))
+                        .font(.caption).foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                Spacer(minLength: 8)
                 if e.detail != nil {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
+                        .font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
                         .rotationEffect(.degrees(open ? 90 : 0))
+                        .padding(.top, 3)
                 }
             }
             if open, let d = e.detail {
                 Text(d)
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(.system(.caption, design: .monospaced))
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                    .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
-                    .padding(.leading, 26)
+                    .padding(10)
+                    .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .padding(.leading, 34)
             }
         }
-        .padding(.horizontal, 12).padding(.vertical, 6)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
         .contentShape(Rectangle())
         .onTapGesture {
             guard e.detail != nil else { return }
-            if open { expanded.remove(e.id) } else { expanded.insert(e.id) }
+            withAnimation(.easeOut(duration: 0.15)) {
+                if open { expanded.remove(e.id) } else { expanded.insert(e.id) }
+            }
         }
         .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(e.detail == nil ? [] : .isButton)
         .accessibilityHint(e.detail == nil ? "" : (open ? "Hides the details" : "Shows the details"))
     }
 

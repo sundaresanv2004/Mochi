@@ -121,14 +121,26 @@ struct DebugTab: View {
 
     private func need(_ symbol: String, _ tint: Color, _ title: String, _ value: Double, _ note: String) -> some View {
         SettingRow(symbol: symbol, tint: tint, title: title, subtitle: note) {
-            HStack(spacing: 8) {
-                Meter(symbol: symbol, label: title, value: value, tint: tint, showLabel: false)
-                    .frame(width: 110)
-                Text("\(Int((value * 100).rounded()))%")
-                    .font(.system(size: 12, design: .monospaced))
-                    .frame(width: 38, alignment: .trailing)
-            }
+            level(value, tint)
         }
+    }
+
+    /// A plain bar and the percentage, lined up on the right of a row.
+    private func level(_ value: Double, _ tint: Color) -> some View {
+        HStack(spacing: 10) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.primary.opacity(0.10))
+                    Capsule().fill(tint).frame(width: max(5, geo.size.width * min(1, max(0, value))))
+                }
+            }
+            .frame(width: 120, height: 6)
+            Text("\(Int((value * 100).rounded()))%")
+                .font(.callout).monospacedDigit().foregroundStyle(.secondary)
+                .frame(width: 40, alignment: .trailing)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityValue("\(Int((value * 100).rounded())) percent")
     }
 
     /// The numbers behind the feeling: the brain's thresholds are listed so you can see what is about to change.
@@ -141,9 +153,10 @@ struct DebugTab: View {
             need("heart.fill", .pink, "Joy", mind.joy, "Lonely below 25%, joyful above 70%")
             RowDivider()
             SettingRow(symbol: "star.fill", tint: .purple, title: "Bond: \(mind.bondTitle)",
-                       subtitle: "Level \(mind.level) of \(PetMind.maxLevel), \(Int(mind.bondXP)) XP, day \(mind.daysTogether) together") {
-                Meter(symbol: "star.fill", label: "Bond progress", value: mind.levelProgress, tint: .purple, showLabel: false)
-                    .frame(width: 156)
+                       subtitle: mind.level < PetMind.maxLevel
+                        ? "Level \(mind.level) of \(PetMind.maxLevel), on the way to level \(mind.level + 1) · \(Int(mind.bondXP)) XP · day \(mind.daysTogether)"
+                        : "Top level · \(Int(mind.bondXP)) XP · day \(mind.daysTogether)") {
+                level(mind.levelProgress, .purple)
             }
         }
     }
