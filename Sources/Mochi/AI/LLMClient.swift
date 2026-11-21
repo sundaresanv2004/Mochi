@@ -41,6 +41,8 @@ struct LLMClient {
     var baseURL: String
     var model: String
     var apiKey: String
+    /// What the request is for ("fresh lines", "remark"…), for the Debug page's event log.
+    var purpose = "request"
 
     private static let gate = LLMGate()
     private static let session: URLSession = {
@@ -104,7 +106,14 @@ struct LLMClient {
             return try JSONSerialization.data(withJSONObject: b)
         }
 
+        let asked = Date()
         await Self.gate.enter(urgent: urgent)
+        let started = Date()
+        let queued = started.timeIntervalSince(asked)
+        let prompt = "SYSTEM:\n\(system)\n\nUSER:\n\(user)"
+        func took() -> String {
+            String(format: "%.1fs", Date().timeIntervalSince(started)) + (queued >= 0.5 ? String(format: ", after %.1fs in the queue", queued) : "")
+        }
         let data: Data
         do {
             r.httpBody = try body("max_tokens", temperature)
@@ -117,13 +126,18 @@ struct LLMClient {
             }
         } catch {
             await Self.gate.leave()
+            DebugLog.add(.ai, "\(purpose.capitalizingFirst) failed (\(took())): \(error.localizedDescription)",
+                         detail: "Model: \(model)\n\n" + prompt)
             throw error
         }
         await Self.gate.leave()
 
         let root = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let message = (root?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any]
-        let text = Self.stripThinking(message?["content"] as? String ?? "")
+        let raw = message?["content"] as? String ?? ""
+        let text = Self.stripThinking(raw)
+        DebugLog.add(.ai, "\(purpose.capitalizingFirst): \(model) replied in \(took())\(text.isEmpty ? ", but with nothing" : "")",
+                     detail: prompt + "\n\nREPLY:\n" + (raw.isEmpty ? "(empty)" : raw))
         guard !text.isEmpty else { throw LLMError.empty }
         return text
     }

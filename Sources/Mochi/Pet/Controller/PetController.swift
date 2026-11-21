@@ -48,6 +48,7 @@ final class PetController {
     var vy: CGFloat = 0
     var surface: Surface = .floor
     var facing: CGFloat = 1
+    var loggedSurface = Surface.floor       // the surface the event log last saw, to note each change once
     var lastSaid = ""                       // the last thing it said, and how many things so far (Debug page, tests)
     var saidCount = 0
     var lastSpot = CGPoint.zero             // where the pet last was, and for how long it has stayed put
@@ -249,6 +250,7 @@ final class PetController {
     // MARK: Public controls (menu bar, right-click, settings)
 
     func start() {
+        DebugLog.add(.system, "\(isMain ? "Main pet" : "Second pet") started", pet: species.name)
         window.orderFrontRegardless()
         audio.start()
         lastFrame = Date()
@@ -278,6 +280,7 @@ final class PetController {
 
     /// Remove this pet from the screen for good (used when the second pet is switched off).
     func stop() {
+        DebugLog.add(.system, "Pet removed from the screen", pet: species.name)
         timer?.invalidate()
         timer = nil
         cancellables.removeAll()

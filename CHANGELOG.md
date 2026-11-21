@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Debug page: a new Event log keeps the last 500 things the pets did and why, newest first. It shows each decision and what chose it (instincts, the AI model, a reminder, a menu command, music starting…), every line said or held back and why, each AI request with its prompt, reply and how long it took (and when the pet fell back to its built-in lines), sound changes, reminder clocks, focus sessions, two-pet meetings and conversations, falls, throws, display hops, and pausing while the Mac sleeps. Filter by kind, search, pause the list, expand an entry for details, and copy or save it as text for a bug report. Nothing is written to disk unless you save it
+- Debug page: Live readings now show energy, tummy, joy and bond as numbers, with the levels at which the pet's mood changes, and the activity header reads in plain words ("Walk right on the floor")
+- `Mochi --render` also draws the Debug page's Live readings and Event log, and `Mochi --logic-test` checks the event log
+
 - Music: the pet no longer drops everything to dance when Spotify, Apple Music or another player starts. It keeps walking, climbing and exploring as usual while vibing to the beat: footsteps in time with the music, a side-to-side groove, foot taps and waving arms when it stands still, and a few seconds with its eyes closed, lost in the song. It still breaks into a proper dance now and then. Music playing during a call (for example Spotify while you sit in a Discord voice channel) gets the vibe too; the pet just stays quiet for the call
 
 - AI (optional): connect any OpenAI-compatible server in Settings › AI, local (Ollama, LM Studio, llama.cpp) or hosted. The API key is kept in the keychain, and the pet falls back to its built-in lines and behaviour whenever the server is off or slow

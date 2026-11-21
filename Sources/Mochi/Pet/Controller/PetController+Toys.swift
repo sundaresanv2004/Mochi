@@ -23,7 +23,7 @@ extension PetController {
             log.gaveTreat()
             view.spawnHearts(4)
             say(Dialogue.yum.randomElement() ?? "Yum!", force: true)
-            apply(Decision(action: .happy, duration: 2.2))
+            apply(Decision(action: .happy, duration: 2.2), why: "ate the treat")
             return true
         }
         if abs(dx) > 12 {

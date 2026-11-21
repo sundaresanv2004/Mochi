@@ -16,6 +16,9 @@ extension PetController {
 
     /// Leap onto another display, landing on its Dock / bottom edge just inside the side it came in from.
     func cross(to screen: NSScreen, left: Bool) {
+        let all = NSScreen.screens
+        DebugLog.add(.movement, "Jumping to display \((all.firstIndex(of: screen) ?? 0) + 1) of \(all.count)", pet: species.name)
+        loggedSurface = .air
         let v = screen.visibleFrame
         let p = Platform(id: 0, minX: v.minX + reach, maxX: v.maxX - reach, top: v.minY)
         let end = CGPoint(x: left ? p.maxX - 30 * scale : p.minX + 30 * scale, y: p.top + reach)

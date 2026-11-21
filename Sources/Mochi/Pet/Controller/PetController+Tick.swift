@@ -105,6 +105,16 @@ extension PetController {
     }
 
     func finish(_ dt: CGFloat, _ f: NSRect) {
+        if surface != loggedSurface {
+            let what: String
+            switch surface {
+            case .air: what = held ? "Picked up" : (thrown ? "Thrown" : (jump != nil ? "Jumping" : "Falling"))
+            case .floor: what = platform.id == 0 ? "Landed on the Dock" : "Landed on a window"
+            default: what = "Clinging to the \(surface.label)"
+            }
+            DebugLog.add(.movement, what, pet: species.name)
+            loggedSurface = surface
+        }
         // Smoothly rotate onto the new surface.
         var diff = targetAngle - view.angle
         while diff > .pi { diff -= 2 * .pi }

@@ -31,6 +31,8 @@ struct Decision {
     let duration: TimeInterval
     /// Something to say while starting the action (optional).
     var line: String? = nil
+    /// Who chose it ("instincts", "AI model"), for the Debug page's event log.
+    var source: String? = nil
 }
 
 /// Everything the brain is allowed to know about the world.
@@ -65,6 +67,12 @@ final class MindBrain: Brain {
     private var lastNeedLine = Date.distantPast
 
     func nextDecision(_ ctx: PetContext) -> Decision {
+        var d = choose(ctx)
+        d.source = "instincts"
+        return d
+    }
+
+    private func choose(_ ctx: PetContext) -> Decision {
         if ctx.userAway { return Decision(action: .sleep, duration: 30) }
 
         let p = ctx.species.personality

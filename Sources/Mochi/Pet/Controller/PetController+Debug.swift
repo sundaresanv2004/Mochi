@@ -9,6 +9,19 @@ enum DebugAction {
     case skip(minutes: Int)         // move every reminder clock forward
     case meet(SocialKind)
     case nextScreen
+
+    /// What the button was, for the event log.
+    var label: String {
+        switch self {
+        case .reminder(let k): return "\(k.label) reminder"
+        case .stretch: return "stretch break"
+        case .calendar: return "calendar alert"
+        case .checkIn: return "daily check-in"
+        case .skip(let m): return "skip reminder clocks \(m) min ahead"
+        case .meet(let k): return "meeting: \(k.label.lowercased())"
+        case .nextScreen: return "send to next display"
+        }
+    }
 }
 
 /// Live state for the Debug settings page, refreshed once a second by the main pet.
@@ -31,6 +44,7 @@ final class PetDebug: ObservableObject {
 extension PetController {
     func debug(_ a: DebugAction) {
         touch()
+        DebugLog.add(.system, "Debug page: \(a.label)")
         switch a {
         case .reminder(let kind):
             fireReminder(kind)
@@ -38,7 +52,7 @@ extension PetController {
             fireStretch()
         case .calendar:
             say(Dialogue.meeting("Design review", minutes: 5), force: true, seconds: 7)
-            if canAct { apply(Decision(action: .happy, duration: 2)) }
+            if canAct { apply(Decision(action: .happy, duration: 2), why: "Debug page") }
         case .checkIn:
             checkIn()
         case .skip(let minutes):
@@ -79,9 +93,15 @@ extension PetController {
         r["stretch"] = settings.breakReminders ? countdown(activeSeconds, settings.breakMinutes) : "Off"
         d.reminders = r
 
-        if let why = remindersBlocked { d.reminderState = "Held back: \(why)" }
-        else if idle >= 300 { d.reminderState = "Paused: no input for \(Int(idle / 60)) min" }
-        else { d.reminderState = "Counting" }
+        // Log only when the clocks change state (counting, paused, held back), not every second.
+        let state: String
+        if let why = remindersBlocked { state = "Held back: \(why)" }
+        else if idle >= 300 { state = "Paused: no input" }
+        else { state = "Counting" }
+        if d.reminderState != "Starting…", !d.reminderState.hasPrefix(state) {
+            DebugLog.add(.reminder, "Reminder clocks: \(state.lowercased())")
+        }
+        d.reminderState = state == "Paused: no input" ? "\(state) for \(Int(idle / 60)) min" : state
 
         d.presence = userAway ? "Away (no input for \(Int(idle / 60)) min)" : "Here, last input \(Int(idle))s ago"
 
@@ -104,7 +124,7 @@ extension PetController {
         if mind.energy < 0.25 { why.append("tired") }
         if mind.fullness < 0.2 { why.append("hungry") }
         if mind.joy < 0.25 { why.append("lonely") }
-        d.petState = "\(action) on the \(surface), next decision in \(max(0, Int(remaining)))s"
+        d.petState = "\(action.label(on: surface).capitalizingFirst) on the \(surface.label), next decision in \(max(0, Int(remaining)))s"
             + (why.isEmpty ? "" : "\n" + why.joined(separator: ", "))
         let all = NSScreen.screens
         d.screens = all.count == 1 ? "One display" : "On display \((all.firstIndex(of: currentScreen) ?? 0) + 1) of \(all.count)"

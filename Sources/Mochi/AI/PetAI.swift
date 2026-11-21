@@ -64,16 +64,24 @@ final class PetAI: ObservableObject {
     }
 
     /// Runs `work` off the main thread and hands the result (nil on any failure) back on it.
-    private func run<T>(urgent: Bool = false, _ work: @escaping (LLMClient) async throws -> T?,
+    /// `what` names the request in the Debug page's event log.
+    private func run<T>(_ what: String, urgent: Bool = false, _ work: @escaping (LLMClient) async throws -> T?,
                         done: @escaping (T?) -> Void) {
-        guard ready, urgent || Date() >= downUntil else { done(nil); return }
-        let c = client
+        guard ready else { done(nil); return }
+        guard urgent || Date() >= downUntil else {
+            DebugLog.add(.ai, "Skipped \(what): the server failed recently, trying again in \(Int(downUntil.timeIntervalSinceNow))s")
+            done(nil)
+            return
+        }
+        var c = client
+        c.purpose = what
         Task.detached { [self] in
             do {
                 let value = try await work(c)
                 await MainActor.run {
                     self.lastError = nil
                     self.lastReply = Date()
+                    if value == nil { DebugLog.add(.ai, "Couldn't use the reply for \(what); the built-in behaviour takes over") }
                     done(value)
                 }
             } catch {
@@ -200,7 +208,7 @@ final class PetAI: ObservableObject {
         Each line: at most \(words) words, at most one emoji, all different from each other.
         Reply with only a JSON array of 10 strings.
         """
-        run({ c in
+        run("fresh lines (\(m.key))", { c in
             let reply = try await c.chat(system: system, user: user, maxTokens: 500, temperature: 1.0)
             var list = LLMClient.json(in: reply)
             if let dict = list as? [String: Any] { list = dict.values.first { $0 is [Any] } }
@@ -237,14 +245,17 @@ final class PetAI: ObservableObject {
             finished = true
             done(line)
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + patience) { finish(nil) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + patience) {
+            if !finished { DebugLog.add(.ai, "Remark took longer than \(Int(patience))s; said the built-in line instead", pet: s.name) }
+            finish(nil)
+        }
         let system = persona(s)
         let user = """
         \(situation())\(extra.isEmpty ? "" : " " + extra)
         What just happened: \(event)
         Say one short line about it, at most 14 words. Reply with just the line.
         """
-        run(urgent: true, { c in
+        run("remark", urgent: true, { c in
             LLMClient.line(try await c.chat(system: system, user: user, maxTokens: 220, urgent: true))
         }, done: finish)
     }
@@ -301,7 +312,7 @@ final class PetAI: ObservableObject {
         Reply with only JSON: {"action": "<option>", "say": "<line or empty>"}
         """
         let axis: CGFloat = ctx.axisFraction < 0.12 ? 1 : (ctx.axisFraction > 0.88 ? -1 : (Bool.random() ? 1 : -1))
-        run({ c in
+        run("next move", { c in
             let reply = try await c.chat(system: system, user: user, maxTokens: 260)
             guard let obj = LLMClient.json(in: reply) as? [String: Any],
                   let name = (obj["action"] as? String)?.lowercased().replacingOccurrences(of: " ", with: "_"),
@@ -389,7 +400,7 @@ final class PetAI: ObservableObject {
         things about the human listed above; don't invent facts about them.
         Reply with only a JSON array of \(count) strings.
         """
-        run(urgent: true, { c in
+        run("conversation (\(topic.rawValue))", urgent: true, { c in
             let reply = try await c.chat(system: system, user: user, maxTokens: 120 + count * 60, temperature: 1.0, urgent: true)
             var list = LLMClient.json(in: reply)
             if let dict = list as? [String: Any] { list = dict.values.first { $0 is [Any] } }
@@ -435,7 +446,7 @@ final class PetAI: ObservableObject {
         If they just want to talk, use "none" and answer in "say". If you cannot do what they ask, use "none" and say so kindly.
         """
         let user = "\(situation()) \(extra)\nYour human typed: \(text)"
-        run(urgent: true, { c in
+        run("typed request", urgent: true, { c in
             let reply = try await c.chat(system: system, user: user, maxTokens: 320, temperature: 0.5, urgent: true)
             guard let obj = LLMClient.json(in: reply) as? [String: Any] else {
                 // A model that ignored the format but still answered: treat it as plain talk.
@@ -485,7 +496,7 @@ final class PetAI: ObservableObject {
         you remember, add up to 2 short facts in third person (for example "Often works past midnight"). Usually there are none.
         Reply with only JSON: {"diary": "<entry>", "facts": []}
         """
-        run(urgent: true, { c -> (String, [String])? in
+        run("diary", urgent: true, { c -> (String, [String])? in
             let reply = try await c.chat(system: system, user: user, maxTokens: 500, temperature: 0.8)
             guard let obj = LLMClient.json(in: reply) as? [String: Any],
                   let entry = (obj["diary"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -512,7 +523,8 @@ final class PetAI: ObservableObject {
         guard !testing else { return }
         testing = true
         testResult = nil
-        let c = client
+        var c = client
+        c.purpose = "connection test"
         Task.detached { [self] in
             let found = (try? await c.models()) ?? []
             var probe = c

@@ -42,10 +42,14 @@ extension PetController {
             return
         }
         let spoken = saidCount
+        DebugLog.add(.ai, "Asked the model for a remark: \(event)", pet: species.name)
         PetAI.shared.reaction(to: event, species: species, extra: surroundings) { [weak self] line in
             guard let self else { return }
             // Something else was said while the model was thinking: don't talk over it.
-            if !force, self.saidCount != spoken, self.bubble.visible { return }
+            if !force, self.saidCount != spoken, self.bubble.visible {
+                DebugLog.add(.ai, "Remark dropped: something else was said meanwhile", pet: self.species.name)
+                return
+            }
             self.say(line ?? fallback, force: force, seconds: line == nil ? seconds : max(seconds, 4.5))
         }
     }
@@ -72,6 +76,8 @@ extension PetController {
                 return
             }
             if PetAI.shared.on(.memory) { PetMemory.shared.note("Your human asked: \"\(text.prefix(80))\"") }
+            DebugLog.add(.ai, "Request understood as: \(cmd.action)", pet: self.species.name,
+                         detail: "You typed: \(text)\nminutes: \(cmd.minutes.map(String.init) ?? "-")  value: \(cmd.value ?? "-")\nsay: \(cmd.say ?? "-")")
             let before = self.saidCount
             let problem = self.perform(cmd)
             // The action may have said something of its own (a treat, a focus session); the reply goes on top.
@@ -88,7 +94,7 @@ extension PetController {
         let value = (c.value ?? "").lowercased()
         func act(_ a: PetAction, _ seconds: TimeInterval) -> String? {
             guard canAct else { return "I'm a bit busy in mid-air!" }
-            apply(Decision(action: a, duration: seconds), forceSay: true)
+            apply(Decision(action: a, duration: seconds), forceSay: true, why: "your request")
             return nil
         }
         /// The nearest interval the settings offer.
@@ -178,12 +184,14 @@ extension PetController {
         chatReady = nil
         banterAsked = PetAI.shared.on(.banter)
         guard banterAsked else { return }
+        DebugLog.add(.social, "Ordered a hello conversation with \(b.species.name) from the model", pet: species.name)
         let token = banterToken
         PetAI.shared.banter(species, b.species, topic: .hello, now: happeningNow) { [weak self, weak b] lines in
             guard let self, let b, self.banterToken == token else { return }
             self.banterAsked = false
             guard let lines else {
                 // No conversation is coming: if they are standing there waiting, let them get on with things.
+                DebugLog.add(.social, "No hello conversation came back", pet: self.species.name)
                 if self.banterArrived != nil {
                     self.banterArrived = nil
                     for pet in [self, b] where pet.action == .idle { pet.remaining = min(pet.remaining, 1) }
@@ -207,10 +215,15 @@ extension PetController {
         let token = banterToken
         let now = happeningNow
         let topic = PetAI.shared.pickBanterTopic(now: now)
+        DebugLog.add(.social, "Ordered a chat about \(topic.rawValue) with \(b.species.name); they meet once it's written", pet: species.name)
         PetAI.shared.banter(species, b.species, topic: topic, now: now, count: 6) { [weak self] lines in
             guard let self, self.banterToken == token else { return }
             self.banterAsked = false
-            guard let lines else { return }
+            guard let lines else {
+                DebugLog.add(.social, "The chat never came back; carrying on as usual", pet: self.species.name)
+                return
+            }
+            DebugLog.add(.social, "Chat is ready (\(lines.count) lines)", pet: self.species.name)
             self.banterLines = lines
             self.chatReady = Date()
             self.visitWait = min(self.visitWait, 1)
@@ -232,6 +245,8 @@ extension PetController {
         banterArrived = nil
         chatReady = nil
         lastBanter = lines
+        DebugLog.add(.social, "Talking with \(b.species.name)", pet: species.name,
+                     detail: lines.enumerated().map { "\($0.offset % 2 == 0 ? species.name : b.species.name): \($0.element)" }.joined(separator: "\n"))
         banterToken += 1
         let token = banterToken
         // Longer lines stay up longer, so there is time to read them.
@@ -253,7 +268,11 @@ extension PetController {
                 let listener = i % 2 == 0 ? b : self
                 // Either one wandered off, fell asleep or got picked up: the chat is over.
                 guard speaker.canAct, listener.canAct, speaker.action != .sleep, listener.action != .sleep,
-                      abs(speaker.cx - listener.cx) < 160 * self.scale else { self.banterToken += 1; return }
+                      abs(speaker.cx - listener.cx) < 160 * self.scale else {
+                    DebugLog.add(.social, "Conversation cut short after \(i) of \(lines.count) lines", pet: self.species.name)
+                    self.banterToken += 1
+                    return
+                }
                 listener.bubble.hide()
                 speaker.say(line, seconds: shown[i] - 0.2)
                 speaker.action = .happy

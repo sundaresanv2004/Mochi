@@ -4,7 +4,8 @@ import AppKit
 extension PetController {
     func touch() { lastInteraction = Date() }
 
-    func apply(_ d: Decision, forceSay: Bool = false) {
+    /// `why` says what asked for it, for the Debug page's event log (the brain's decisions say it themselves).
+    func apply(_ d: Decision, forceSay: Bool = false, why: String? = nil) {
         action = d.action
         remaining = d.duration
         forceClimb = false
@@ -72,6 +73,9 @@ extension PetController {
             }
         }
         view.spin = 0
+        var line = "\(action.label(on: surface).capitalizingFirst) for \(String(format: "%.1f", remaining))s · \(why ?? d.source ?? "reaction")"
+        if action != d.action { line += " (wanted to \(d.action.label(on: surface)))" }
+        DebugLog.add(.decision, line, pet: species.name)
     }
 
     /// Safety net against a pet that looks frozen: if it hasn't moved for a while and nothing explains it
@@ -88,7 +92,7 @@ extension PetController {
         guard !excused, stillFor > (action == .sleep ? 90 : 40) else { return }
         stillFor = 0
         let axis: CGFloat = context(f).axisFraction < 0.5 ? 1 : -1
-        apply(Decision(action: .walk(axis: axis), duration: .random(in: 3...6)))
+        apply(Decision(action: .walk(axis: axis), duration: .random(in: 3...6)), why: "stood still too long")
         if Double.random(in: 0..<1) < 0.6 { say(species.lines.randomElement() ?? "Hi!") }
     }
 
@@ -110,7 +114,7 @@ extension PetController {
         scheduleGreeting(now)
         if social != .none { return }               // busy with the other pet
         if settings.chattiness != .off, action != .sleep, !bubble.visible, media != .call, media != .video, !userAway, !focusing {
-            apply(Decision(action: .greet, duration: 2.2))
+            apply(Decision(action: .greet, duration: 2.2), why: "time for a hello")
         }
     }
 
@@ -121,9 +125,16 @@ extension PetController {
     }
 
     func say(_ text: String, force: Bool = false, seconds: TimeInterval = 3.6) {
-        guard canSpeak(force: force) else { return }
+        guard canSpeak(force: force) else {
+            let why = settings.chattiness == .off ? "speech is set to Silent" : (media == .call ? "on a call" : "focus session")
+            DebugLog.add(.speech, "Kept quiet (\(why)): \(text)", pet: species.name)
+            return
+        }
         // With AI on, a canned line is swapped for one the model wrote for the same moment.
+        let canned = text
         let text = PetAI.shared.restyle(text, species: species)
+        DebugLog.add(.speech, "Said: \(text)", pet: species.name,
+                     detail: text == canned ? nil : "AI-written line in place of: \(canned)")
         lastSaid = text
         saidCount += 1
         bubble.say(text, for: seconds)

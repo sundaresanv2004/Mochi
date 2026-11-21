@@ -71,6 +71,16 @@ extension Render {
             snapshot(view, to: page == .pet ? path : path.replacingOccurrences(of: ".png", with: "-\(page.rawValue).png"))
         }
         snapshot(MenuHeader(mind: .shared, species: s.species), to: path.replacingOccurrences(of: ".png", with: "-menu.png"))
+
+        // The Debug page's other panes, after a couple of simulated minutes so the event log has something in it.
+        PetAI.shared.suspended = true
+        let pet = PetController()
+        pet.lastSlow = .distantFuture
+        for _ in 0..<(120 * 30) { pet.tick(1.0 / 30) }
+        for pane in [DebugTab.Pane.activity, .log] {
+            let view = DebugTab(settings: s, pane: pane).padding(24).frame(width: SettingsView.size.width - 198)
+            snapshot(view, to: path.replacingOccurrences(of: ".png", with: "-debug-\(pane == .log ? "log" : "readings").png"))
+        }
     }
 
     private static func snapshot<V: View>(_ view: V, to path: String) {

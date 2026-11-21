@@ -5,6 +5,7 @@ import AppKit
 struct DebugTab: View {
     @ObservedObject var settings: PetSettings
     @ObservedObject var debug = PetDebug.shared
+    @ObservedObject var mind = PetMind.shared
 
     private func fire(_ a: DebugAction) { debug.fire?(a) }
 
@@ -16,11 +17,16 @@ struct DebugTab: View {
         }
     }
 
-    private enum Pane: String, CaseIterable {
-        case reminders = "Reminder tests", activity = "Live readings", meetings = "Pet meetings"
+    enum Pane: String, CaseIterable {
+        case reminders = "Reminder tests", activity = "Live readings", meetings = "Pet meetings", log = "Event log"
     }
 
-    @State private var pane: Pane = .reminders
+    @State private var pane: Pane
+
+    init(settings: PetSettings, pane: Pane = .reminders) {
+        self.settings = settings
+        _pane = State(initialValue: pane)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -54,6 +60,7 @@ struct DebugTab: View {
             case .reminders: reminderTests
             case .activity: readings
             case .meetings: meetings
+            case .log: DebugLogView()
             }
         }
     }
@@ -106,6 +113,42 @@ struct DebugTab: View {
     }
 
     private var readings: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            notices
+            needs
+        }
+    }
+
+    private func need(_ symbol: String, _ tint: Color, _ title: String, _ value: Double, _ note: String) -> some View {
+        SettingRow(symbol: symbol, tint: tint, title: title, subtitle: note) {
+            HStack(spacing: 8) {
+                Meter(symbol: symbol, label: title, value: value, tint: tint, showLabel: false)
+                    .frame(width: 110)
+                Text("\(Int((value * 100).rounded()))%")
+                    .font(.system(size: 12, design: .monospaced))
+                    .frame(width: 38, alignment: .trailing)
+            }
+        }
+    }
+
+    /// The numbers behind the feeling: the brain's thresholds are listed so you can see what is about to change.
+    private var needs: some View {
+        CardSection(title: "Needs", footer: "Saved every 30 seconds. The feeling shown in the menu is \(mind.feeling.label.lowercased()).") {
+            need("bolt.fill", .yellow, "Energy", mind.energy, "Naps more below 25%, must sleep below 8%")
+            RowDivider()
+            need("fork.knife", .orange, "Tummy", mind.fullness, "Hungry below 20%")
+            RowDivider()
+            need("heart.fill", .pink, "Joy", mind.joy, "Lonely below 25%, joyful above 70%")
+            RowDivider()
+            SettingRow(symbol: "star.fill", tint: .purple, title: "Bond: \(mind.bondTitle)",
+                       subtitle: "Level \(mind.level) of \(PetMind.maxLevel), \(Int(mind.bondXP)) XP, day \(mind.daysTogether) together") {
+                Meter(symbol: "star.fill", label: "Bond progress", value: mind.levelProgress, tint: .purple, showLabel: false)
+                    .frame(width: 156)
+            }
+        }
+    }
+
+    private var notices: some View {
         CardSection(title: "What your pet notices") {
             SettingRow(symbol: "person.fill", tint: .blue, title: "Presence", subtitle: debug.presence) { EmptyView() }
             RowDivider()

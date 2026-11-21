@@ -26,16 +26,26 @@ extension PetController {
         // "Other" just means some app has the speakers open, which is often silence: opt-in only.
         if m == .other, !settings.reactToOtherAudio { m = .none }
         if m == .call, !settings.quietOnCalls { m = .none }
-        if m != media { media = m; mediaChanged() }
+        if m != media {
+            if isMain {
+                var why = ""
+                if audio.current != m { why = " (heard \(AudioWatcher.name(audio.current).lowercased()), ignored by the Behavior settings)" }
+                DebugLog.add(.media, "\(AudioWatcher.name(media)) → \(AudioWatcher.name(m))\(why)",
+                             detail: audio.sources.isEmpty ? "No app is using the speakers" : audio.sources.joined(separator: "\n"))
+            }
+            media = m; mediaChanged()
+        }
         updateBeat()
 
         // Is anyone there?
         let idle = SystemInfo.userIdleSeconds()
         if idle > 180, !userAway {
             userAway = true
-            if canAct { action = .sleep; remaining = 600 }
+            if isMain { DebugLog.add(.system, "You're away: no input for \(Int(idle / 60)) min") }
+            if canAct { action = .sleep; remaining = 600; DebugLog.add(.decision, "Sleep · you're away", pet: species.name) }
         } else if userAway, idle < 5 {
             userAway = false
+            if isMain { DebugLog.add(.system, "You're back") }
             welcomeBack()
         }
 
@@ -64,13 +74,13 @@ extension PetController {
             else if Bool.random() { say("Something's playing… 🎧") }
             // No stopping to dance: the headphones go on and it carries on with whatever it was doing,
             // grooving to the beat (see PetView.vibing). Standing about, it gives a happy little bounce first.
-            if canAct, !userAway, action == .idle || action == .lookAround { apply(Decision(action: .happy, duration: 1.6)) }
+            if canAct, !userAway, action == .idle || action == .lookAround { apply(Decision(action: .happy, duration: 1.6), why: "music started") }
         case .video:
             if isMain { react("Your human started watching a video\(soundSource)", fallback: "Movie time! 🍿", note: true) }
-            if canAct, !userAway { apply(Decision(action: .idle, duration: 5)) }
+            if canAct, !userAway { apply(Decision(action: .idle, duration: 5), why: "video started") }
         case .call:
             if isMain { say("Shh… I'll be quiet 🤫", force: true) }
-            if canAct, !userAway { apply(Decision(action: .idle, duration: 5)) }
+            if canAct, !userAway { apply(Decision(action: .idle, duration: 5), why: "call started") }
         case .none:
             break
         }
@@ -90,8 +100,10 @@ extension PetController {
         guard on != (view.musicBpm > 0) else { return }
         if on {
             view.musicBpm = .random(in: 100...126)
+            DebugLog.add(.media, "Headphones on, vibing at \(Int(view.musicBpm)) bpm", pet: species.name)
         } else {
             view.musicBpm = 0
+            DebugLog.add(.media, "Headphones off: the music stopped", pet: species.name)
             if isMain, media == .none { react("The music you were vibing to just stopped", fallback: "Aww, the music stopped 🥲") }
         }
     }
@@ -101,7 +113,7 @@ extension PetController {
         log.tookBreak()
         react("Your human just came back to the Mac after a few minutes away", fallback: "Welcome back! 👋")
         view.spawnHearts(3)
-        if canAct { apply(Decision(action: .happy, duration: 2)) }
+        if canAct { apply(Decision(action: .happy, duration: 2), why: "you came back") }
     }
 
     func checkHour() {
@@ -183,7 +195,11 @@ extension PetController {
     /// Each reminder counts the time you are at your Mac. Reading or watching without touching anything
     /// still counts; the clock pauses once you have been gone five minutes and starts over after fifteen.
     func checkReminders(_ dt: TimeInterval, idle: TimeInterval, _ now: Date) {
-        if idle > 900 { reminderElapsed.removeAll(); return }     // a proper break: start over
+        if idle > 900 {                                           // a proper break: start over
+            if !reminderElapsed.isEmpty { DebugLog.add(.reminder, "Reminder clocks reset after a 15-minute break") }
+            reminderElapsed.removeAll()
+            return
+        }
         guard idle < 300 else { return }                          // stepped away: pause
         for kind in ReminderKind.allCases {
             guard let every = settings.interval(kind) else { reminderElapsed[kind] = nil; continue }
@@ -196,15 +212,16 @@ extension PetController {
 
     /// Show a reminder now and restart its clock.
     func fireReminder(_ kind: ReminderKind, _ now: Date = Date()) {
+        DebugLog.add(.reminder, "\(kind.label) reminder shown, clock restarts")
         reminderElapsed[kind] = 0
         lastReminder = now
         if action == .sleep, canAct { action = .idle; remaining = 1 }     // wake up to say it
         view.spawnHearts(1)
         if canAct {
             switch kind {
-            case .water: apply(Decision(action: .happy, duration: 1.6))
-            case .posture: apply(Decision(action: .stretch, duration: 2.6))
-            case .eyes: apply(Decision(action: .lookAround, duration: 3))
+            case .water: apply(Decision(action: .happy, duration: 1.6), why: "reminder")
+            case .posture: apply(Decision(action: .stretch, duration: 2.6), why: "reminder")
+            case .eyes: apply(Decision(action: .lookAround, duration: 3), why: "reminder")
             }
         }
         // Said last, so nothing the action says ("*yaaawn*") can replace the reminder.
@@ -212,9 +229,10 @@ extension PetController {
     }
 
     func fireStretch(_ now: Date = Date()) {
+        DebugLog.add(.reminder, "Stretch break shown after \(Int(activeSeconds / 60)) min at the Mac")
         activeSeconds = 0
         lastReminder = now
-        if canAct { apply(Decision(action: .stretch, duration: 3)) }
+        if canAct { apply(Decision(action: .stretch, duration: 3), why: "stretch break") }
         say("You've been at it for a while. Time to stretch! 🧘", force: true, seconds: 7)
     }
 
@@ -222,8 +240,9 @@ extension PetController {
         guard settings.calendarAlerts, now.timeIntervalSince(lastCalendarCheck) >= 30 else { return }
         lastCalendarCheck = now
         guard let alert = calendar.due(now: now).first else { return }
+        DebugLog.add(.reminder, "Calendar alert: \(alert.title), \(alert.minutes) min")
         say(Dialogue.meeting(alert.title, minutes: alert.minutes), force: true, seconds: 7)
-        if canAct { apply(Decision(action: .happy, duration: 2)) }
+        if canAct { apply(Decision(action: .happy, duration: 2), why: "calendar alert") }
     }
 
     /// Turns calendar alerts on, asking macOS for access the first time. `done(false)` means access was refused.

@@ -19,7 +19,7 @@ extension PetController {
         if shake >= 5, dist < 350, calm, now > dizzyCooldown {
             shake = 0
             dizzyCooldown = now.addingTimeInterval(15)
-            apply(Decision(action: .dizzy, duration: 2.8))
+            apply(Decision(action: .dizzy, duration: 2.8), why: "cursor shaken")
             say("Whoa… everything's spinning 😵‍💫")
         }
 

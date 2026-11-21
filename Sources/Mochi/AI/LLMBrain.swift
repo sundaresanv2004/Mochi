@@ -21,7 +21,15 @@ final class LLMBrain: Brain {
         let now = Date()
         if let i = idea {
             idea = nil
-            if !handsOff, now.timeIntervalSince(i.at) < 45 { return remember(i.decision) }
+            let age = now.timeIntervalSince(i.at)
+            if !handsOff, age < 45 {
+                var d = i.decision
+                d.source = "AI model"
+                return remember(d)
+            }
+            DebugLog.add(.ai, "Dropped the model's idea (\(i.decision.action.label(on: ctx.surface))): "
+                         + (handsOff ? "the pet has to stay calm right now" : "it came \(Int(age))s ago, too late"),
+                         pet: ctx.species.name)
         }
         if !handsOff, !asking, now >= nextAsk {
             asking = true

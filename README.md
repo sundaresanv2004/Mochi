@@ -197,7 +197,8 @@ Sources/Mochi
 │   └── CalendarWatcher.swift      upcoming events (only if calendar alerts are on)
 ├── Features/
 │   ├── Treat.swift                the snack and the ball you can drop
-│   └── DayStats.swift             today's and yesterday's numbers for the check-in
+│   ├── DayStats.swift             today's and yesterday's numbers for the check-in
+│   └── DebugLog.swift             the Debug page's event log (last 500 events, in memory only)
 ├── UI/
 │   ├── SpeechBubble.swift         the speech bubble window
 │   ├── AskPanel.swift             the text box for typing to the pet
@@ -232,6 +233,11 @@ for the model to write lines for go in `Dialogue.moments`. Try your changes agai
 ```bash
 swift run Mochi --ai-test http://localhost:11434/v1 llama3.2
 ```
+
+**Find out why the pet did something:** Settings › Debug › Event log lists what the pets decided (and whether the
+instincts, the AI model or something you did chose it), what they said or kept quiet about, every model request with
+its prompt, reply and timing, sound changes, reminders, meetings and movement. Filter, search, then copy or save it
+for a bug report. To record something new, call `DebugLog.add(.category, "what happened", pet:, detail:)`.
 
 **Swap the brain:** anything that implements `Brain` can drive the pet; pass it to `PetController(brain:)`.
 `LLMBrain` is the default and behaves exactly like `MindBrain` while AI is off.

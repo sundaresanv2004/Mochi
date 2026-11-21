@@ -85,6 +85,7 @@ enum LogicTest {
         var still = 0.0, longestStill = 0.0, moving = 0.0, tilted = 0.0, offscreen = 0
         var last = CGPoint(x: a.cx, y: a.cy)
         said = a.saidCount
+        let logged = DebugLog.shared.recorded
         let dt = 1.0 / 30
         for _ in 0..<(20 * 60 * 30) {
             a.tick(CGFloat(dt))
@@ -103,6 +104,19 @@ enum LogicTest {
         check("never spins or flips while on a wall or the ceiling", tilted < 0.1, String(format: "%.1fs", tilted))
         check("never leaves the screen", offscreen == 0)
         check("ends upright", abs(a.view.spin) < 0.01 || a.action == .spin || a.action == .flip || a.action == .dizzy)
+
+        // MARK: Event log
+        print("--- Debug page event log ---")
+        let events = DebugLog.shared.entries.suffix(DebugLog.shared.recorded - logged)
+        let kinds = Dictionary(grouping: events, by: \.category).mapValues(\.count)
+        print("events in 20 minutes: " + kinds.sorted { $0.value > $1.value }.map { "\($0.key.label) \($0.value)" }.joined(separator: ", "))
+        check("every decision from the brain is logged with where it came from",
+              events.contains { $0.category == .decision && $0.message.hasSuffix("· instincts") })
+        check("whatever the pet says is logged", kinds[.speech, default: 0] >= a.saidCount - said, "\(kinds[.speech, default: 0]) for \(a.saidCount - said) said")
+        check("actions are logged in plain words", !events.contains { $0.message.contains("(axis:") })
+        let perMinute = Double(DebugLog.shared.recorded - logged) / 20
+        check("the log stays readable (under 40 events a minute)", perMinute < 40, String(format: "%.0f a minute", perMinute))
+        check("the log keeps at most \(DebugLog.capacity) events", DebugLog.shared.entries.count <= DebugLog.capacity)
 
         // MARK: Music
         print("--- Music: moving as usual while vibing ---")

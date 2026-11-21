@@ -49,6 +49,7 @@ extension PetController {
             cy = p.top + reach
             action = .dizzy
             remaining = 2.4
+            DebugLog.add(.movement, "Crash-landed after \(bounces) bounce\(bounces == 1 ? "" : "s"), dizzy", pet: species.name)
             targetAngle = 0
             say(Dialogue.crashLanded.randomElement() ?? "Whoa…", force: true)
             return
@@ -88,6 +89,7 @@ extension PetController {
     }
 
     func startSlip() {
+        DebugLog.add(.movement, "Losing grip on the \(surface.label) after \(Int(gripTime))s", pet: species.name)
         slipTimer = 0.8
         slipped = true
         say(Dialogue.slipping.randomElement() ?? "Uh oh…", force: true)
@@ -103,6 +105,8 @@ extension PetController {
     // MARK: Dragging
 
     func dragBegan() {
+        DebugLog.add(.movement, "Picked up from the \(surface.label)", pet: species.name)
+        loggedSurface = .air
         held = true
         jump = nil
         thrown = false
@@ -134,6 +138,8 @@ extension PetController {
             cx = clamp(cx, f.minX + reach, f.maxX - reach)
             cy = min(cy, f.maxY - reach)
             surface = .air
+            loggedSurface = .air
+            DebugLog.add(.movement, "Thrown at \(Int(hypot(vx, vy))) pt/s", pet: species.name)
             say(Dialogue.thrown.randomElement() ?? "Wheee!", force: true)
             return
         }

@@ -4,6 +4,7 @@ import AppKit
 extension PetController {
     /// Stop animating entirely (Mac asleep, display off, screen locked). Nothing runs until `resume`.
     func pause(_ reason: String) {
+        if isMain, !pauseReasons.contains(reason) { DebugLog.add(.system, "Paused: \(reason)") }
         pauseReasons.insert(reason)
         timer?.invalidate()
         timer = nil
@@ -12,8 +13,9 @@ extension PetController {
     }
 
     func resume(_ reason: String) {
-        pauseReasons.remove(reason)
+        let had = pauseReasons.remove(reason) != nil
         guard pauseReasons.isEmpty, timer == nil else { return }
+        if isMain, had { DebugLog.add(.system, "Resumed after \(reason)") }
         lastFrame = Date()
         lastSlow = Date()                          // time spent asleep doesn't count as time awake
         keyCount = SystemInfo.keyPressCount()

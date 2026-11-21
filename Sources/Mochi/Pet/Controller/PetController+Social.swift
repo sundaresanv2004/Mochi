@@ -112,7 +112,8 @@ extension PetController {
     }
 
     func beginSocial(_ kind: SocialKind, with b: PetController) {
-        apply(Decision(action: .visit, duration: 40))
+        apply(Decision(action: .visit, duration: 40), why: "two pets")
+        DebugLog.add(.social, "Starts \(kind.label.lowercased()) with \(b.species.name)", pet: species.name)
         socialKind = kind
         social = .approach
         socialTimer = 12
@@ -126,7 +127,7 @@ extension PetController {
     }
 
     func invited(by b: PetController) {
-        apply(Decision(action: .visit, duration: 40))
+        apply(Decision(action: .visit, duration: 40), why: "two pets")
         social = .wait
         socialTimer = 14
         facing = b.cx > cx ? 1 : -1
@@ -135,6 +136,7 @@ extension PetController {
     func endSocial(cheer: Bool = false) {
         social = .none
         guard action == .visit else { return }
+        DebugLog.add(.social, "Get-together over\(cheer ? ", cheering" : "")", pet: species.name)
         action = cheer ? .happy : .idle
         remaining = cheer ? 1.6 : 1
     }
@@ -240,16 +242,16 @@ extension PetController {
 
         case .dance:
             say(Dialogue.danceTogether.randomElement() ?? "Dance with me!")
-            apply(Decision(action: .dance, duration: 5))
-            b.apply(Decision(action: .dance, duration: 5))
+            apply(Decision(action: .dance, duration: 5), why: "two pets")
+            b.apply(Decision(action: .dance, duration: 5), why: "two pets")
 
         case .nap:
             say(Dialogue.napTogether.randomElement() ?? "Nap time…")
-            apply(Decision(action: .sleep, duration: 25))
-            if b.action != .sleep { b.apply(Decision(action: .sleep, duration: 25)) }
+            apply(Decision(action: .sleep, duration: 25), why: "two pets")
+            if b.action != .sleep { b.apply(Decision(action: .sleep, duration: 25), why: "two pets") }
 
         case .showOff:
-            apply(Bool.random() ? Decision(action: .power, duration: 2.2) : Decision(action: .flip, duration: 0.8), forceSay: true)
+            apply(Bool.random() ? Decision(action: .power, duration: 2.2) : Decision(action: .flip, duration: 0.8), forceSay: true, why: "two pets")
             b.cheer(for: self, line: Dialogue.impressed.randomElement())
 
         case .tag:
@@ -319,6 +321,6 @@ extension PetController {
         var axis: CGFloat = cx >= b.cx ? 1 : -1
         if axis > 0, cx > platform.maxX - 70 * scale { axis = -1 }
         if axis < 0, cx < platform.minX + 70 * scale { axis = 1 }
-        apply(Decision(action: .walk(axis: axis), duration: 0.9))
+        apply(Decision(action: .walk(axis: axis), duration: 0.9), why: "making room for the other pet")
     }
 }

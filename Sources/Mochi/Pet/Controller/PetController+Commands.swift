@@ -11,7 +11,7 @@ extension PetController {
 
     func greet() {
         touch()
-        if surface != .air { apply(Decision(action: .greet, duration: 2.2), forceSay: true) }
+        if surface != .air { apply(Decision(action: .greet, duration: 2.2), forceSay: true, why: "command") }
         else { say(greetingLine(), force: true) }
     }
 
@@ -33,6 +33,7 @@ extension PetController {
         }
         action = .happy
         remaining = 1.8
+        DebugLog.add(.decision, "Happy bounce for 1.8s · you petted it\(clickStreak > 1 ? " (\(clickStreak) clicks in a row)" : "")", pet: species.name)
         buddy?.noticedPetting(of: self)
     }
 
@@ -40,12 +41,13 @@ extension PetController {
         touch()
         action = .sleep
         remaining = 30
+        DebugLog.add(.decision, "Sleep for 30.0s · command", pet: species.name)
         say("Zzz…", force: true)
     }
 
     func comeHere() {
         touch()
-        apply(Decision(action: .chase, duration: 8))
+        apply(Decision(action: .chase, duration: 8), why: "command")
         say("Coming!", force: true)
     }
 
@@ -90,14 +92,16 @@ extension PetController {
         focusEnds = Date().addingTimeInterval(TimeInterval(minutes * 60))
         focusPlanned = minutes
         activeSeconds = 0
+        DebugLog.add(.reminder, "Focus session started: \(minutes) min (reminders wait until it ends)")
         endBall(celebrate: false)
         say(Dialogue.focusStart.randomElement() ?? "Focus time!", force: true)
-        if canAct { apply(Decision(action: .idle, duration: 4)) }
+        if canAct { apply(Decision(action: .idle, duration: 4), why: "focus session") }
     }
 
     func stopFocus() {
         guard focusEnds != nil else { return }
         focusEnds = nil
+        DebugLog.add(.reminder, "Focus session stopped early")
         say(Dialogue.focusStopped.randomElement() ?? "Okay, break time!", force: true)
     }
 
@@ -105,24 +109,25 @@ extension PetController {
     func checkIn() {
         touch()
         say(log.current.summary(prefix: "Today"), force: true, seconds: 7)
-        if canAct { apply(Decision(action: .happy, duration: 1.6)) }
+        if canAct { apply(Decision(action: .happy, duration: 1.6), why: "command") }
     }
 
     func finishFocus() {
         focusEnds = nil
+        DebugLog.add(.reminder, "Focus session finished: \(focusPlanned) min")
         activeSeconds = 0
         mind.focusedTogether()
         log.focused(minutes: focusPlanned)
         view.spawnHearts(5)
         react("Your human just finished a \(focusPlanned)-minute focus session with you beside them: celebrate and suggest a break",
               fallback: Dialogue.focusDone.randomElement() ?? "Focus done! 🎉", force: true, note: true)
-        if canAct { apply(Decision(action: .dance, duration: 5)) }
+        if canAct { apply(Decision(action: .dance, duration: 5), why: "focus session done") }
     }
 
     /// The pet's signature move: fire for the dragon, lightning for the robot, a roar for the dino…
     func powerMove() {
         touch()
-        if canAct { apply(Decision(action: .power, duration: 2.2), forceSay: true) }
+        if canAct { apply(Decision(action: .power, duration: 2.2), forceSay: true, why: "command") }
     }
 
     /// A random trick, on demand (menu bar / right-click).
@@ -137,11 +142,13 @@ extension PetController {
             Decision(action: .flip, duration: 0.8),
             Decision(action: .power, duration: 2.2)
         ]
-        if canAct, let d = options.randomElement() { apply(d) }
+        if canAct, let d = options.randomElement() { apply(d, why: "command") }
     }
 
     /// Rescue: put the pet back on screen and let it drop in from the top.
     func bringBack() {
+        DebugLog.add(.movement, isOnScreen() ? "Brought back to the middle of the screen" : "Brought back: it was outside every screen",
+                     pet: species.name)
         touch()
         held = false
         jump = nil
