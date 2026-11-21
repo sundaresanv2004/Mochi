@@ -382,10 +382,15 @@ final class GoogleCalendar: ObservableObject {
 
     // MARK: OAuth client
 
-    /// Mochi needs an OAuth client ("Desktop app") from Google Cloud. A build can ship one in Info.plist
-    /// (GoogleClientID / GoogleClientSecret); otherwise you paste your own in Settings.
-    static var bundledClientID: String { Bundle.main.object(forInfoDictionaryKey: "GoogleClientID") as? String ?? "" }
-    private static var bundledSecret: String { Bundle.main.object(forInfoDictionaryKey: "GoogleClientSecret") as? String ?? "" }
+    /// Mochi needs an OAuth client ("Desktop app") from Google Cloud. `scripts/build-app.sh` writes one into
+    /// the built app's Info.plist (GoogleClientID / GoogleClientSecret) from the GOOGLE_CLIENT_ID and
+    /// GOOGLE_CLIENT_SECRET environment variables. Without it, Settings asks you to paste your own.
+    /// (Google treats a Desktop app's secret as not truly secret; it is kept out of git all the same.)
+    static var bundledClientID: String { infoString("GoogleClientID") }
+    private static var bundledSecret: String { infoString("GoogleClientSecret") }
+    private static func infoString(_ key: String) -> String {
+        (Bundle.main.object(forInfoDictionaryKey: key) as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     var clientID: String {
         let own = PetSettings.shared.googleClientID.trimmingCharacters(in: .whitespacesAndNewlines)
