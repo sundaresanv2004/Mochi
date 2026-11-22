@@ -109,6 +109,11 @@ final class PetSettings: ObservableObject {
     @Published var outfit: Outfit { didSet { d.set(outfit.rawValue, forKey: "outfit") } }
     @Published var dailyCheckIn: Bool { didSet { d.set(dailyCheckIn, forKey: "dailyCheckIn") } }
     @Published var calendarAlerts: Bool { didSet { d.set(calendarAlerts, forKey: "calendarAlerts") } }
+    // Google Calendar (the sign-in itself lives in `GoogleCalendar` and the keychain)
+    @Published var googleCalendarAlerts: Bool { didSet { d.set(googleCalendarAlerts, forKey: "googleCalendarAlerts") } }
+    @Published var googleAlertAtStart: Bool { didSet { d.set(googleAlertAtStart, forKey: "googleAlertAtStart") } }
+    /// Your own OAuth client, when the build doesn't ship one. Its secret is kept in the keychain.
+    @Published var googleClientID: String { didSet { d.set(googleClientID, forKey: "googleClientID") } }
     /// Minutes between each gentle reminder; 0 = off.
     @Published var reminderMinutes: [String: Int] { didSet { d.set(reminderMinutes, forKey: "reminderMinutes") } }
     @Published var breakReminders: Bool { didSet { d.set(breakReminders, forKey: "breakReminders") } }
@@ -154,6 +159,9 @@ final class PetSettings: ObservableObject {
         outfit = Outfit(rawValue: d.string(forKey: "outfit") ?? "") ?? .none
         dailyCheckIn = d.object(forKey: "dailyCheckIn") as? Bool ?? true
         calendarAlerts = d.object(forKey: "calendarAlerts") as? Bool ?? false
+        googleCalendarAlerts = d.object(forKey: "googleCalendarAlerts") as? Bool ?? true
+        googleAlertAtStart = d.object(forKey: "googleAlertAtStart") as? Bool ?? true
+        googleClientID = d.string(forKey: "googleClientID") ?? ""
         reminderMinutes = d.dictionary(forKey: "reminderMinutes") as? [String: Int] ?? [ReminderKind.water.rawValue: 60]
         breakReminders = d.object(forKey: "breakReminders") as? Bool ?? true
         breakMinutes = d.object(forKey: "breakMinutes") as? Int ?? 50

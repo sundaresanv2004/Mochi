@@ -153,6 +153,9 @@ final class PetController {
     var busyCooldown = Date.distantPast
     var hotCooldown = Date.distantPast
     var lastCalendarCheck = Date.distantPast
+    var meetingQueue: [String] = []
+    var lastMeetingSaid = Date.distantPast
+    var recentMeetings: [String: Date] = [:]        // "title|minutes" → when, so the same alert is said once
     var focusPlanned = 0
 
     var treat: Treat?

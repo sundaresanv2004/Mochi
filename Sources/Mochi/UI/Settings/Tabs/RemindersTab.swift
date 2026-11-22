@@ -33,10 +33,12 @@ struct RemindersTab: View {
                              enabled: $settings.breakReminders, interval: $settings.breakMinutes)
             }
 
+            GoogleCalendarSection(settings: settings)
+
             CardSection(title: "Calendar and daily recap",
                         footer: "macOS asks for calendar access the first time you enable alerts. Event titles appear only in your pet’s bubble.") {
                 ToggleRow(symbol: "calendar", tint: .red, title: "Calendar alerts",
-                          subtitle: "Five minutes before an event and again when it starts.", isOn: $settings.calendarAlerts)
+                          subtitle: "Calendars in the Calendar app on this Mac: five minutes before an event and again when it starts.", isOn: $settings.calendarAlerts)
                 RowDivider()
                 ToggleRow(symbol: "chart.bar.fill", tint: .indigo, title: "Daily check-in",
                           subtitle: "A recap at 6 pm and the next morning.", isOn: $settings.dailyCheckIn)

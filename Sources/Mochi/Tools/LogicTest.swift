@@ -302,6 +302,69 @@ enum LogicTest {
         check("a dance stops when the music does", a.remaining <= 0.4, String(format: "%.1fs left", a.remaining))
 
         // MARK: Two pets
+        print("--- Google Calendar ---")
+        do {
+            func event(_ json: String) -> GoogleEvent? { try? JSONDecoder().decode(GoogleEvent.self, from: Data(json.utf8)) }
+            let defaults = [GoogleReminder(method: "popup", minutes: 10)]
+            let own = event(#"{"id":"a","summary":"Standup","start":{"dateTime":"2030-01-07T09:00:00+05:30"},"reminders":{"useDefault":false,"overrides":[{"method":"popup","minutes":5},{"method":"email","minutes":30},{"method":"popup","minutes":5}]}}"#)
+            let ev = own?.reduced(calendarDefaults: defaults)
+            check("an event with its own notifications uses those (30 and 5 min, no repeats)", ev?.reminders == [30, 5], "\(ev?.reminders ?? [])")
+            check("a +05:30 start time is read correctly", ev?.start == GoogleTime.parse("2030-01-07T03:30:00Z"))
+            let usesDefault = event(#"{"id":"b","summary":"1:1","start":{"dateTime":"2030-01-07T10:00:00Z"},"reminders":{"useDefault":true}}"#)
+            check("\"use default\" takes the calendar's default notifications", usesDefault?.reduced(calendarDefaults: defaults)?.reminders == [10])
+            let none = event(#"{"id":"c","summary":"Lunch","start":{"dateTime":"2030-01-07T12:00:00Z"},"reminders":{"useDefault":false}}"#)
+            check("notifications turned off: no reminders", none?.reduced(calendarDefaults: defaults)?.reminders == [])
+            let declined = event(#"{"id":"d","summary":"Optional sync","start":{"dateTime":"2030-01-07T12:00:00Z"},"attendees":[{"self":true,"responseStatus":"declined"}]}"#)
+            check("declined events are skipped", declined != nil && declined?.reduced(calendarDefaults: defaults) == nil)
+            let cancelled = event(#"{"id":"e","status":"cancelled","start":{"dateTime":"2030-01-07T12:00:00Z"}}"#)
+            check("cancelled events are skipped", cancelled != nil && cancelled?.reduced(calendarDefaults: defaults) == nil)
+            let allDay = event(#"{"id":"f","summary":"Birthday","start":{"date":"2030-01-08"},"reminders":{"useDefault":true}}"#)?.reduced(calendarDefaults: defaults)
+            check("all-day events don't take the timed defaults", allDay?.allDay == true && allDay?.reminders == [])
+
+            let start = Date().addingTimeInterval(3600)
+            let meeting = CalendarEvent(id: "m", title: "Design review", start: start, allDay: false, reminders: [30, 5])
+            check("alarms at 30 min, 5 min and the start", meeting.alarms(atStart: true).map(\.minutes) == [30, 5, 0])
+            check("…or only its own times", meeting.alarms(atStart: false).map(\.minutes) == [30, 5])
+            var sched = AlarmSchedule()
+            let alarms = meeting.alarms(atStart: true)
+            check("nothing an hour ahead", sched.due(alarms, now: start - 3600).isEmpty)
+            let at30 = sched.due(alarms, now: start - 1800)
+            check("the 30-minute reminder fires on time", at30.map(\.minutes) == [30] && at30.first?.minutesLeft(start - 1800) == 30)
+            check("…only once", sched.due(alarms, now: start - 1790).isEmpty)
+            check("the 5-minute reminder fires", sched.due(alarms, now: start - 300).map(\.minutes) == [5])
+            check("and \"starting now\"", sched.due(alarms, now: start + 1).map(\.minutes) == [0])
+            check("nothing after that", sched.due(alarms, now: start + 120).isEmpty)
+
+            var slept = AlarmSchedule()
+            let woke = slept.due(alarms, now: start - 600)
+            check("asleep through the 30-min one: caught up once, saying the real time left", woke.count == 1 && woke.first?.minutesLeft(start - 600) == 10)
+            var late = AlarmSchedule()
+            check("an event that already started gets no catch-up", late.due(alarms, now: start + 300).isEmpty)
+            let disabled = GoogleCalendar.apiError(403, Data(#"{"error":{"code":403,"message":"Google Calendar API has not been used in project 123 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/calendar-json.googleapis.com/overview?project=123 then retry.","errors":[{"reason":"accessNotConfigured"}],"details":[{"reason":"SERVICE_DISABLED"}]}}"#.utf8))
+            check("a turned-off API says so, with the link to turn it on", disabled.message.contains("turned off") && disabled.message.contains("overview?project=123,"), disabled.message)
+            let scope = GoogleCalendar.apiError(403, Data(#"{"error":{"code":403,"message":"Request had insufficient authentication scopes.","errors":[{"reason":"insufficientPermissions"}],"details":[{"reason":"ACCESS_TOKEN_SCOPE_INSUFFICIENT"}]}}"#.utf8))
+            check("missing calendar permission says to sign in again and tick the box", scope.message.contains("tick"), scope.message)
+            check("anything else shows Google's own words", GoogleCalendar.apiError(500, Data(#"{"error":{"message":"Backend Error"}}"#.utf8)).message.hasSuffix("500: Backend Error"))
+            check("long waits read naturally", Dialogue.inTime(90) == "1 hr 30 min" && Dialogue.inTime(1440) == "1 day" && Dialogue.inTime(5) == "5 min")
+
+            // The pet says it, and the same alert from the Mac's Calendar app isn't repeated.
+            let c = PetController()
+            c.lastSlow = .distantFuture
+            let saidBefore = c.saidCount
+            let now = Date()
+            c.meetingQueue = []; c.recentMeetings = [:]; c.lastMeetingSaid = .distantPast
+            c.queueMeeting("Design review", minutes: 5, now)        // from Google
+            c.queueMeeting("Design review", minutes: 5, now)        // the same event from the Calendar app
+            c.queueMeeting("Standup", minutes: 0, now)
+            check("the same alert from both calendars is queued once", c.meetingQueue.count == 2, "\(c.meetingQueue)")
+            c.checkCalendar(now)
+            check("the pet says the reminder", c.saidCount == saidBefore + 1 && c.lastSaid == "📅 Design review in 5 min!", c.lastSaid)
+            c.checkCalendar(now + 2)
+            check("a second one waits a few seconds instead of covering the first", c.saidCount == saidBefore + 1)
+            c.checkCalendar(now + 9)
+            check("…then it's said", c.lastSaid == "📅 Standup is starting now!", c.lastSaid)
+        }
+
         print("--- Two pets ---")
         let b = PetController(isMain: false)
         b.lastSlow = .distantFuture
