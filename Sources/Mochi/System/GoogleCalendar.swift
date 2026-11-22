@@ -193,6 +193,11 @@ enum GoogleOAuth {
         if !secret.isEmpty { form["client_secret"] = secret }
         let json = try await post("https://oauth2.googleapis.com/token", form)
         guard let access = json["access_token"] as? String else { throw tokenError(json) }
+        // Google's consent screen lets you untick the calendar box and still finish signing in.
+        let granted = (json["scope"] as? String ?? "").split(separator: " ")
+        if !granted.contains(where: { $0.hasPrefix("https://www.googleapis.com/auth/calendar") }) {
+            throw GoogleError(message: "Mochi wasn't given access to your calendars. Sign in again and tick “See and download any calendar you can access” on Google's page.")
+        }
         return Tokens(access: access,
                       expires: Date().addingTimeInterval((json["expires_in"] as? Double ?? 3600) - 60),
                       refresh: json["refresh_token"] as? String,
@@ -569,11 +574,34 @@ final class GoogleCalendar: ObservableObject {
         let (data, response) = try await URLSession.shared.data(for: req)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
         if code == 401 { throw GoogleError(message: "Google ended the sign-in. Please sign in again.", signedOut: true) }
-        if code == 403 {
-            throw GoogleError(message: "Google Calendar refused the request. Is the Google Calendar API enabled for this OAuth client?")
-        }
-        guard (200..<300).contains(code) else { throw GoogleError(message: "Google Calendar answered with error \(code).") }
+        guard (200..<300).contains(code) else { throw apiError(code, data) }
         return try JSONDecoder().decode(T.self, from: data)
+    }
+
+    /// Turns Google's error reply into something you can act on, keeping Google's own words when it's unusual.
+    static func apiError(_ code: Int, _ data: Data) -> GoogleError {
+        let error = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? [String: Any]
+        let message = error?["message"] as? String ?? ""
+        var reasons = ((error?["errors"] as? [[String: Any]]) ?? []).compactMap { $0["reason"] as? String }
+        reasons += ((error?["details"] as? [[String: Any]]) ?? []).compactMap { $0["reason"] as? String }
+        let all = Set(reasons)
+
+        if code == 403, !all.isDisjoint(with: ["accessNotConfigured", "SERVICE_DISABLED"]) {
+            // The message names the project and links to the page that turns the API on.
+            let link = message.range(of: #"https://console\.developers\.google\.com/\S+"#, options: .regularExpression)
+                .map { String(message[$0]).trimmingCharacters(in: CharacterSet(charactersIn: ".,")) }
+            return GoogleError(message: "The Google Calendar API is turned off for this OAuth client's Google Cloud project. "
+                + "Turn it on\(link.map { " at \($0)" } ?? " in Google Cloud Console (APIs & Services › Library)"), wait a minute or two, then Sync Now.")
+        }
+        if code == 403, !all.isDisjoint(with: ["insufficientPermissions", "ACCESS_TOKEN_SCOPE_INSUFFICIENT"]) {
+            return GoogleError(message: "Mochi wasn't given access to your calendars. Sign out, sign in again and tick “See and download any calendar you can access” on Google's page.",
+                               signedOut: false)
+        }
+        if code == 403 || code == 429, !all.isDisjoint(with: ["rateLimitExceeded", "userRateLimitExceeded", "quotaExceeded", "RATE_LIMIT_EXCEEDED"]) {
+            return GoogleError(message: "Google Calendar says it's busy (too many requests). Mochi will try again in a minute.")
+        }
+        let detail = message.isEmpty ? "" : ": \(message)"
+        return GoogleError(message: "Google Calendar answered with error \(code)\(detail)")
     }
 
     // MARK: For the pet

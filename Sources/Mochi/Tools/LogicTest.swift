@@ -340,6 +340,11 @@ enum LogicTest {
             check("asleep through the 30-min one: caught up once, saying the real time left", woke.count == 1 && woke.first?.minutesLeft(start - 600) == 10)
             var late = AlarmSchedule()
             check("an event that already started gets no catch-up", late.due(alarms, now: start + 300).isEmpty)
+            let disabled = GoogleCalendar.apiError(403, Data(#"{"error":{"code":403,"message":"Google Calendar API has not been used in project 123 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/calendar-json.googleapis.com/overview?project=123 then retry.","errors":[{"reason":"accessNotConfigured"}],"details":[{"reason":"SERVICE_DISABLED"}]}}"#.utf8))
+            check("a turned-off API says so, with the link to turn it on", disabled.message.contains("turned off") && disabled.message.contains("overview?project=123,"), disabled.message)
+            let scope = GoogleCalendar.apiError(403, Data(#"{"error":{"code":403,"message":"Request had insufficient authentication scopes.","errors":[{"reason":"insufficientPermissions"}],"details":[{"reason":"ACCESS_TOKEN_SCOPE_INSUFFICIENT"}]}}"#.utf8))
+            check("missing calendar permission says to sign in again and tick the box", scope.message.contains("tick"), scope.message)
+            check("anything else shows Google's own words", GoogleCalendar.apiError(500, Data(#"{"error":{"message":"Backend Error"}}"#.utf8)).message.hasSuffix("500: Backend Error"))
             check("long waits read naturally", Dialogue.inTime(90) == "1 hr 30 min" && Dialogue.inTime(1440) == "1 day" && Dialogue.inTime(5) == "5 min")
 
             // The pet says it, and the same alert from the Mac's Calendar app isn't repeated.
