@@ -43,6 +43,12 @@ Switch pets any time from the Pet tab in settings:
 - **Memory**: it remembers all of this between launches, rests while the app is closed, and misses you when you've been gone
 - See how it's doing at the top of the menu and in the settings panel
 
+**Listens when you talk to it**
+- **Talk to Mochi** in the menu (`⌘ L` while it's open): say what you'd like and the pet shows the words as it hears them, then answers in its bubble
+- **"Hey Mochi"**: switch on *Listen for "Hey Mochi"* in Settings › General and just say "Hey Mochi, do a dance" (or "Hey Mochi", wait for 👂 *Yes?*, then the request). It answers to whichever pet you have, by name
+- **Speech is recognised on your computer**: the Mac's on-device speech recognition, and Windows' own desktop speech recogniser. Nothing is recorded or sent anywhere; on the Mac, the microphone feeds the recogniser only once someone starts speaking, and only a request that starts with the pet's name is kept. Listening pauses while the computer sleeps or is locked, and during calls unless you switch off *Stay quiet during calls* (Settings › Behavior)
+- **Works without AI**: the pet understands simple requests by itself (dance, a treat, play ball, sleep, come here, a trick, a focus session, a water reminder…). With AI on, what you say goes to the model like a typed request, so you can ask for anything
+
 **Can think with a language model (optional)**
 
 Point Mochi at any server that speaks the OpenAI API (Ollama, LM Studio, llama.cpp, OpenRouter, OpenAI…) in
@@ -194,6 +200,9 @@ Everything works the same as on the Mac, with these differences:
   with no window; **calls** from the microphone privacy record (a chat app with the microphone on)
 - **Calendar alerts** from a local calendar aren't available (Windows only lets packaged apps read it);
   **Google Calendar** works. Secrets (the AI key, the Google sign-in) go in Windows Credential Manager
+- **Talking to the pet** uses the Windows desktop speech recogniser (System.Speech), run by a hidden PowerShell
+  helper. It needs a speech language installed (Settings › Time & language › Speech; English usually is) and
+  "Let desktop apps access your microphone" on (Settings › Privacy & security › Microphone)
 - **Launch at login** uses the per-user Run key (Settings › General, or Settings › Apps › Startup in Windows)
 - The pet runs on every display at the primary display's scale, so on a second display with a different scale
   it looks a little bigger or smaller
@@ -222,9 +231,10 @@ Google Calendar sign-in ready to use.
 | --- | --- |
 | Click the pet | Pets it (hearts and a happy hop) |
 | Drag and drop | Pick it up; let go near an edge to make it cling |
-| Right-click the pet or click the menu bar icon (the tray icon on Windows) | A status card, then Give a Treat, Play Ball, Interact (say hi, pet, come here, trick, sleep), Focus Session, Bring Back, Settings, Quit |
-| Settings | **Pet**: choose a pet and see how it's doing. **Behavior**: what it's allowed to do and react to. **Reminders**: nudges, calendar alerts, daily check-in. **Today**: your day in numbers. **General**: size, speech bubbles, launch at login |
-| `⌘ ,` / `⌘ B` (menu open) | Open settings / bring the pet back |
+| Right-click the pet or click the menu bar icon (the tray icon on Windows) | A status card, then Talk to Mochi, Give a Treat, Play Ball, Interact (say hi, pet, come here, trick, sleep), Focus Session, Bring Back, Settings, Quit |
+| Settings | **Pet**: choose a pet and see how it's doing. **Behavior**: what it's allowed to do and react to. **Reminders**: nudges, calendar alerts, daily check-in. **Today**: your day in numbers. **General**: size, speech bubbles, "Hey Mochi", launch at login |
+| `⌘ L` / `⌘ ,` / `⌘ B` (menu open) | Talk to the pet / open settings / bring the pet back |
+| "Hey Mochi, …" | With *Listen for "Hey Mochi"* on, a spoken request at any time |
 
 ## How it works
 
@@ -289,6 +299,10 @@ Sources/Mochi
 │   ├── PetAI.swift                every prompt: lines, remarks, decisions, banter, requests, diary
 │   ├── LLMBrain.swift             MindBrain with the model chiming in every few minutes
 │   └── PetMemory.swift            remembered facts and the diary (Application Support/Mochi)
+├── Voice/
+│   ├── VoiceControl.swift         who listens when: Talk to…, "Hey Mochi", pausing for calls and sleep
+│   ├── VoiceText.swift            spotting "Hey Mochi" in what was heard; simple requests without AI
+│   └── MacSpeechEngine.swift      on-device speech recognition with a loudness gate (Windows: SAPISpeechEngine)
 ├── System/
 │   ├── Platform.swift             finds window tops to stand on
 │   ├── AudioWatcher.swift         what kind of sound is playing (music / video / call)
@@ -312,6 +326,7 @@ Sources/Mochi
 └── Tools/
     ├── Render.swift               `Mochi --render out.png` writes a preview sheet
     ├── LogicTest.swift            `Mochi --logic-test`
+    ├── VoiceTest.swift            `Mochi --voice-test` speaks into the real recogniser and checks what it understood
     └── AITest.swift               `Mochi --ai-test <server> <model>` tries every AI feature once
 ```
 

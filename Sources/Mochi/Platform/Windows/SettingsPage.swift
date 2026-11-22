@@ -54,7 +54,7 @@ input[type=text], input[type=password], select { font:inherit; padding:6px 10px;
   <div class="row"><div class="t"><b>Chase cursor</b><small>Occasionally follow the pointer.</small></div><label class="switch"><input type="checkbox" data-k="followCursor"><i></i></label></div></div>
  <div class="card"><h3>Sound and calls</h3>
   <div class="row"><div class="t"><b>React to media</b><small>Vibe to whatever is playing (Spotify, YouTube in a browser…) and settle down for videos or calls.</small></div><label class="switch"><input type="checkbox" data-k="reactToMedia"><i></i></label></div>
-  <div class="row"><div class="t"><b>Stay quiet during calls</b><small>Pause speech bubbles while a calling app uses your microphone.</small></div><label class="switch"><input type="checkbox" data-k="quietOnCalls"><i></i></label></div>
+  <div class="row"><div class="t"><b>Stay quiet during calls</b><small>Pause speech bubbles and listening for "Hey" + your pet's name while a calling app uses your microphone.</small></div><label class="switch"><input type="checkbox" data-k="quietOnCalls"><i></i></label></div>
   <div class="row"><div class="t"><b>React to other audio</b><small>Only if Windows can't report what's playing: count any app with the speakers open.</small></div><label class="switch"><input type="checkbox" data-k="reactToOtherAudio"><i></i></label></div></div>
  <div class="card"><h3>Keyboard and PC</h3>
   <div class="row"><div class="t"><b>Bop along while I type</b></div><label class="switch"><input type="checkbox" data-k="reactToTyping"><i></i></label></div>
@@ -95,7 +95,9 @@ input[type=text], input[type=password], select { font:inherit; padding:6px 10px;
 
 <section class="page" id="p-general"><h2>General</h2><div class="sub">Size, speech and system options</div>
  <div class="card"><h3>Desktop pet size</h3><div class="row"><span class="seg" id="sizeSeg"></span></div></div>
- <div class="card"><h3>Voice</h3><div class="row"><div class="t"><b>Speech bubbles</b></div><span class="seg" id="chatSeg"></span></div></div>
+ <div class="card"><h3>Voice</h3><div class="row"><div class="t"><b>Speech bubbles</b></div><span class="seg" id="chatSeg"></span></div>
+  <div class="row"><div class="t"><b id="wakeHead">Listen for "Hey Mochi"</b><small id="wakeSub"></small></div><label class="switch"><input type="checkbox" data-k="voiceWake"><i></i></label></div>
+  <div class="row"><div class="t"><b id="talkHead">Talk to Mochi</b><small id="talkSub"></small></div><button onclick="act('talk')">🎙 Talk</button></div></div>
  <div class="card"><h3>System</h3>
   <div class="row"><div class="t"><b>Launch at sign-in</b><small id="loginSub"></small></div><label class="switch"><input type="checkbox" data-k="launchAtLogin" id="login"><i></i></label></div>
   <div class="row"><div class="t"><b>Lost your pet?</b><small>Drops it back in from the top of the screen</small></div><button onclick="act('bringBack')">Bring back</button></div></div></section>
@@ -165,6 +167,9 @@ function render() {
   $('forgetRow').style.display = (S.memory.facts.length || S.memory.diary.length) ? '' : 'none';
   // General
   seg($('sizeSeg'), S.sizes, s.petSize, 'petSize'); seg($('chatSeg'), S.chattiness, s.chattiness, 'chattiness');
+  $('wakeHead').textContent = `Listen for "Hey ${sp.name}"`; $('talkHead').textContent = `Talk to ${sp.name}`;
+  $('wakeSub').textContent = `Then say what you'd like: "Hey ${sp.name}, do a dance". Uses Windows' own speech recognition, on this PC; nothing is recorded.`;
+  $('talkSub').textContent = `Or choose Talk to ${sp.name} in the menu. Without AI it knows simple requests like dance, treat or sleep.`;
   $('login').disabled = !s.launchAtLoginAvailable; $('loginSub').textContent = s.launchAtLoginAvailable ? 'Starts Mochi when you sign in to Windows' : 'Needs the built Mochi.exe (not swift run)';
   // Debug
   const g = S.debug; $('petState').textContent = g.petState || 'Waiting for a reading…'; $('remState').textContent = g.reminderState;

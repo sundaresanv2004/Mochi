@@ -45,6 +45,7 @@ if args.contains("--social-test") {
 }
 
 if args.contains("--logic-test") { LogicTest.run() }
+if args.contains("--voice-test") { VoiceTest.run(args) }
 if let i = args.firstIndex(of: "--ai-test") { AITest.run(Array(args[(i + 1)...])) }
 
 if args.contains("--screens-test") {

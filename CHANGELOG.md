@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **Talk to your pet**: *Talk to Mochi* in the menu (⌘L) listens for a request, and with *Listen for "Hey Mochi"*
+  on (Settings › General) you can just say "Hey Mochi, do a dance" at any time. The bubble shows 👂 while it
+  listens, the words as they're recognised, then the answer. On the Mac and on Windows
+- Speech is turned into text on the computer: the Mac's on-device speech recognition (Apple's servers only for a
+  one-off request on a Mac without the on-device model for its language) and Windows' desktop speech recogniser.
+  On the Mac a loudness gate keeps the recogniser off until someone speaks. Listening stops for sleep and the lock
+  screen, and for calls while *Stay quiet during calls* is on
+- Without AI, the pet still understands simple requests, spoken or typed: tricks, treats, play, sleep, come here,
+  focus sessions, reminders. With AI on, a request the server doesn't answer falls back to these
+- `Mochi --voice-test` speaks sentences with the system voice into the real recogniser and checks what it
+  understood; `Mochi --logic-test` checks the wake phrase, simple requests and when listening is on or off
 - **Windows support**: Mochi runs on Windows 10 and 11 from the same code. The pet walks on the taskbar and on
   windows, climbs the screen edges, and does everything it does on the Mac: moods, media acts, treats and toys,
   two pets, reminders, focus sessions, AI, Google Calendar. Its menu is on an icon in the notification area and on
