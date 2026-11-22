@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Screen geometry, surfaces and the window tops the pet can stand on.
 extension PetController {

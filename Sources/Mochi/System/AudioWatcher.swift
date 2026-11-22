@@ -1,5 +1,11 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
+#if canImport(CoreAudio)
 import CoreAudio
+#endif
 
 /// What kind of sound is playing on the Mac right now.
 enum MediaActivity: Equatable {
@@ -47,6 +53,7 @@ final class AudioWatcher {
     func start() {
         guard !started else { resume(); return }
         started = true
+        #if os(macOS)
         let center = DistributedNotificationCenter.default()
         center.addObserver(forName: Notification.Name("com.spotify.client.PlaybackStateChanged"),
                            object: nil, queue: .main) { [weak self] n in self?.record("spotify", n) }
@@ -55,6 +62,7 @@ final class AudioWatcher {
                 self?.record("music", n)
             }
         }
+        #endif
         nowPlaying.onChange = { [weak self] in self?.poll() }
         nowPlaying.start()
         schedule()
@@ -241,7 +249,7 @@ final class AudioWatcher {
         // system sounds and helpers we should ignore
         if has(["com.apple.audio", "com.apple.coreaudio", "com.apple.systemsound", "com.apple.accessibility",
                 "com.apple.siri", "corespeech", "com.apple.notificationcenter", "com.apple.speech", "com.apple.voiceover",
-                "com.apple.controlcenter", "mochi"]) { return nil }
+                "com.apple.controlcenter", "mochi", "audiodg", "shellexperiencehost", "systemsounds"]) { return nil }
 
         // Spotify and Apple Music hold their audio stream open even when paused, so only count them
         // while they say they are actually playing. (Before the first play/pause/track change since
@@ -250,10 +258,10 @@ final class AudioWatcher {
         if has(["com.apple.music", "com.apple.itunes"]) { return nowPlaying || playing["music"] == true ? .music : nil }
 
         if has(["us.zoom", "com.microsoft.teams", "com.apple.facetime", "slack", "skype", "webex", "discord",
-                "com.apple.ichat", "whatsapp", "com.hnc"]) { return .call }
+                "com.apple.ichat", "whatsapp", "com.hnc", "zoom", "ms-teams", "msteams", "teams.exe"]) { return .call }
         if has(["tidal", "amazon.music", "garageband", "ableton", "deezer", "soundcloud", "pandora", "vox",
                 "swinsian"]) { return .music }
-        if has(["quicktime", "videolan", "iina", "com.apple.tv", "plex", "mpv", "netflix", "infuse", "disney"]) { return .video }
+        if has(["quicktime", "videolan", "vlc.exe", "iina", "com.apple.tv", "plex", "mpv", "netflix", "infuse", "disney"]) { return .video }
         return .other           // browsers and anything else that makes sound
     }
 
@@ -265,6 +273,7 @@ final class AudioWatcher {
         let input: Bool         // listening to the microphone
     }
 
+#if os(macOS)
     @available(macOS 14.2, *)
     private func audioProcesses() -> [AudioProcess] {
         let system = AudioObjectID(kAudioObjectSystemObject)
@@ -328,4 +337,5 @@ final class AudioWatcher {
                                                mElement: kAudioObjectPropertyElementMain)
         return AudioObjectGetPropertyData(device, &raddr, 0, nil, &rsize, &running) == noErr && running != 0
     }
+#endif
 }

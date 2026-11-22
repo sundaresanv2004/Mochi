@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(Combine)
 import Combine
+#else
+import AppKitLite
+#endif
 
 /// What the model asked the pet to do in answer to something you typed.
 struct PetCommand {

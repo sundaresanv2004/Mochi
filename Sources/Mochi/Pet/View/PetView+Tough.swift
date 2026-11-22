@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// The tough pets: Rex the dino, Bolt the mech, Ember the dragon, Fang the wolf and Chomp the shark.
 /// They are built from angular, rounded-corner polygons laid out inside the body box, so squash and

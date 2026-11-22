@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Once-a-second awareness: needs, idle, battery, load, reminders and calendar (sound is in +Media).
 extension PetController {

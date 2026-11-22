@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 import AppKit
 
@@ -19,3 +20,5 @@ struct PetPreview: NSViewRepresentable {
         v.outfit = outfit
     }
 }
+
+#endif

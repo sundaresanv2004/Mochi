@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Music: DJ, air guitar, karaoke, glow-stick rave, bongos. All of them move to the song's tempo
 /// (`beatPhase`, `beatPulse`), on top of the vibe the body already does.

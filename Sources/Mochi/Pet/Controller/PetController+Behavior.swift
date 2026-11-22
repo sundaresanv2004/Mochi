@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Applying decisions, speaking, and acting them out each frame.
 extension PetController {

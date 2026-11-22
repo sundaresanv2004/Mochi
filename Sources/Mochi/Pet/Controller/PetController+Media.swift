@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Reacting to what is playing on the Mac. `AudioWatcher` says what kind of thing it is (music, a podcast,
 /// a video, a film or a show, a call) and `NowPlaying` what exactly; this decides how the pet takes it:

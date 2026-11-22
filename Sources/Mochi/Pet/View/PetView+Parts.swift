@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Ears, tails, limbs and markings for Mochi, Miso, Clover, Pip and Boo.
 extension PetView {

@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Hide and peek, chasing and walking along surfaces.
 extension PetController {

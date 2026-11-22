@@ -1,7 +1,18 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
+#if canImport(CryptoKit)
 import CryptoKit
+#endif
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(Network)
 import Network
+#endif
 
 /// Google Calendar: sign in once in Settings › Reminders, and the pet reads out each event's own
 /// notifications ("30 minutes before", "5 minutes before"…) when they fall due, just like Google would.
@@ -161,7 +172,11 @@ enum GoogleOAuth {
     /// Opens Google's sign-in page in the browser and waits for it to come back to Mochi.
     static func signIn(clientID: String, secret: String, receiver: LoopbackReceiver) async throws -> Tokens {
         let verifier = randomString(64)
+        #if canImport(CryptoKit)
         let challenge = Data(SHA256.hash(data: Data(verifier.utf8))).base64URL
+        #else
+        let challenge = Data(LiteSHA256.hash(Array(verifier.utf8))).base64URL
+        #endif
         let state = randomString(24)
         let port = try await receiver.start()
         let redirect = "http://127.0.0.1:\(port)"
@@ -268,6 +283,7 @@ private extension Data {
     }
 }
 
+#if canImport(Network)
 /// A tiny one-shot web server on 127.0.0.1 that catches Google's redirect after you sign in.
 /// It only listens on the loopback address, only while a sign-in is in progress, and stops after
 /// the first proper reply (or three minutes).
@@ -350,6 +366,7 @@ final class LoopbackReceiver: @unchecked Sendable {     // all state is touched 
         replyWaiter = nil
     }
 }
+#endif
 
 // MARK: - The connection
 

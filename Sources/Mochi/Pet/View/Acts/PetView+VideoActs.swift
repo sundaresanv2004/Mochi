@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Videos (YouTube and the like): phone binge, snack attack, smash that like, subscribe bell, comment typer.
 /// The screen's glow and its reflection in the eyes (PetView+Media) go with all of them.

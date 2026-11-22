@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// A tiny click-through window showing one emoji (treats and toys).
 private func emojiWindow(_ emoji: String, at origin: NSPoint) -> NSWindow {

@@ -1,5 +1,13 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
+#if canImport(Combine)
 import Combine
+#else
+import AppKitLite
+#endif
 
 /// Borderless windows must be allowed to sit partly off-screen (on walls) and under the menu bar.
 final class PetWindow: NSWindow {

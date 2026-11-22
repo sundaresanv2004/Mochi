@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 import AppKit
 
@@ -161,3 +162,5 @@ struct FeelingPill: View {
             .accessibilityLabel("Feeling \(feeling.label.lowercased())")
     }
 }
+
+#endif

@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 import AppKit
 
@@ -134,3 +135,5 @@ struct DebugTab: View {
         }
     }
 }
+
+#endif

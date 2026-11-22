@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 import AppKit
 
@@ -146,3 +147,5 @@ struct PetTab: View {
         .accessibilityHidden(true)
     }
 }
+
+#endif

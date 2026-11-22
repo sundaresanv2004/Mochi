@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 
 /// Settings › Reminders: sign in to Google Calendar so the pet reads out each event's own notifications.
@@ -121,3 +122,5 @@ struct GoogleCalendarSection: View {
                        : e.start.formatted(.dateTime.weekday(.abbreviated).hour().minute())
     }
 }
+
+#endif

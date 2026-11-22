@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// The pets you can choose from. Add a new case + a drawing branch in PetView to add another.
 enum Species: String, CaseIterable, Identifiable {

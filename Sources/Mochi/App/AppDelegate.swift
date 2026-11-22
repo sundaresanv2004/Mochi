@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import Combine
 import SwiftUI
@@ -208,3 +209,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func openSettings() { settingsWindow.show() }
     @objc private func quit() { NSApp.terminate(nil) }
 }
+
+#endif

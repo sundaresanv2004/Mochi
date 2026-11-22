@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Sweat, headphones, Zs, music notes and hearts.
 extension PetView {

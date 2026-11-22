@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Where the language model meets the pet: remarks about what is going on, typed requests,
 /// and conversations with the other pet. Everything here falls back to the canned behaviour.

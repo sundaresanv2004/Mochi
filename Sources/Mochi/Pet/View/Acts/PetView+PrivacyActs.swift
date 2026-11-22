@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Something is playing in a private window, so the pet politely doesn't look: a spy disguise (Chrome),
 /// a masquerade mask (Firefox), paws over the eyes (Safari), a sleep mask and earmuffs (Edge), or turned

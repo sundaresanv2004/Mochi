@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 import ServiceManagement
 
@@ -18,3 +19,5 @@ enum LoginItem {
         return enabled
     }
 }
+
+#endif

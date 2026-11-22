@@ -1,17 +1,25 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
+#if os(macOS)
 // Earlier versions run with `swift run` saved under the name "Mochi"; the app now always uses its
 // bundle identifier. Bring the old pet along the first time.
 if UserDefaults.standard.object(forKey: "mind.firstMet") == nil, Bundle.main.bundleIdentifier != "Mochi",
    let old = UserDefaults.standard.persistentDomain(forName: "Mochi") {
     for (key, value) in old { UserDefaults.standard.set(value, forKey: key) }
 }
+#endif
 
 let args = CommandLine.arguments
 if let i = args.firstIndex(of: "--render"), i + 1 < args.count {
     _ = NSApplication.shared
     Render.run(to: args[i + 1])
+    #if os(macOS)
     Render.settings(to: args[i + 1].replacingOccurrences(of: ".png", with: "-settings.png"))
+    #endif
     exit(0)
 }
 
@@ -78,9 +86,13 @@ if args.contains("--audio-test") {
     exit(0)
 }
 
+#if os(macOS)
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
 app.setActivationPolicy(.accessory)   // no Dock icon
 EditMenu.install()                    // copy / paste shortcuts in text fields
 app.run()
+#else
+WindowsApp.run()
+#endif

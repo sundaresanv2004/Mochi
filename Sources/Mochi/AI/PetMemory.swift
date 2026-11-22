@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(Combine)
 import Combine
+#else
+import AppKitLite
+#endif
 
 /// What the pet remembers: a short list of facts about its human, a diary with one entry per day,
 /// and a scratch list of things that happened today (the raw material for tonight's entry).

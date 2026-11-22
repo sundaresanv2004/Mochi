@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 
 struct TodayTab: View {
@@ -119,3 +120,5 @@ struct TodayTab: View {
         .accessibilityElement(children: .combine)
     }
 }
+
+#endif

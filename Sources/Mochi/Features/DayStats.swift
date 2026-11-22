@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(Combine)
 import Combine
+#else
+import AppKitLite
+#endif
 
 /// What happened on one day. Only counts and durations: nothing about what you typed or did.
 struct DayStats: Codable, Equatable {

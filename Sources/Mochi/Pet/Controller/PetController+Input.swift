@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Cursor reactions (shake, hover) and typing along.
 extension PetController {

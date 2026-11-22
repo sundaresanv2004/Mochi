@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 
 /// Connect a language model (any server that speaks the OpenAI API) and choose what the pet uses it for.
@@ -208,3 +209,5 @@ struct AITab: View {
         }
     }
 }
+
+#endif

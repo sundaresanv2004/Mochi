@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 
 struct BehaviorTab: View {
@@ -119,3 +120,5 @@ struct BehaviorTab: View {
         }
     }
 }
+
+#endif
