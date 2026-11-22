@@ -51,6 +51,7 @@ enum WindowsDesktop {
             let rect = Desktop.rect(r)
             guard rect.width > 0, rect.height > 0 else { continue }
             let alpha = layeredAlpha(hwnd, ex)
+            if debug { print("  window \(className(hwnd)) \(Int(rect.minX)),\(Int(rect.minY)) \(Int(rect.width))x\(Int(rect.height)) ex=\(String(ex, radix: 16)) alpha=\(alpha)") }
 
             defer { inFront.append(rect) }
             guard alpha > 0.5, rect.width >= 240, rect.height >= 120 else { continue }
@@ -72,11 +73,17 @@ enum WindowsDesktop {
         return result
     }
 
-    /// The desktop, the taskbars and other shell surfaces aren't windows to stand on.
-    private static func isShell(_ hwnd: HWND) -> Bool {
+    static var debug = ProcessInfo.processInfo.environment["MOCHI_DEBUG_WINDOWS"] != nil
+
+    private static func className(_ hwnd: HWND) -> String {
         var buf = [WCHAR](repeating: 0, count: 128)
         let n = GetClassNameW(hwnd, &buf, Int32(buf.count))
-        let name = String(decoding: buf[0..<Int(max(0, n))], as: UTF16.self)
+        return String(decoding: buf[0..<Int(max(0, n))], as: UTF16.self)
+    }
+
+    /// The desktop, the taskbars and other shell surfaces aren't windows to stand on.
+    private static func isShell(_ hwnd: HWND) -> Bool {
+        let name = className(hwnd)
         return ["Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd", "NotifyIconOverflowWindow",
                 "Windows.UI.Core.CoreWindow", "XamlExplorerHostIslandWindow", "TopLevelWindowForOverflowXamlIsland"].contains(name)
     }

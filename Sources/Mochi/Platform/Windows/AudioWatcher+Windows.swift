@@ -7,13 +7,43 @@ extension AudioWatcher {
     /// the microphone icon in the taskbar). Media playback comes from the system media controls instead
     /// (see `NowPlaying`), so this is only ever used to notice calls.
     func audioProcesses() -> [AudioProcess] {
-        MicrophoneUse.appsUsingMicrophone().map { AudioProcess(bundleID: $0, output: true, input: true) }
+        MicrophoneUse.callAppsUsingMicrophone().map { AudioProcess(bundleID: $0, output: true, input: true) }
     }
 
     func defaultOutputRunning() -> Bool { false }
 }
 
 enum MicrophoneUse {
+    /// Chat and meeting apps (as on the Mac, a browser with the microphone on isn't counted as a call).
+    static let callApps = ["zoom", "teams", "discord", "slack", "skype", "webex", "whatsapp", "telegram", "signal",
+                           "facetime", "ringcentral", "gotomeeting", "bluejeans", "jitsi", "element"]
+
+    /// Call apps that have the microphone open right now. Windows leaves a stale "still using it" entry
+    /// behind when an app quits mid-call, so only apps that are still running count.
+    static func callAppsUsingMicrophone() -> [String] {
+        let running = runningProcessNames()
+        let apps = appsUsingMicrophone().filter { name in callApps.contains { name.contains($0) } }
+            .filter { name in !name.hasSuffix(".exe") || running.contains(name) }
+        return Array(Set(apps)).sorted()
+    }
+
+    private static func runningProcessNames() -> Set<String> {
+        guard let snap = CreateToolhelp32Snapshot(DWORD(TH32CS_SNAPPROCESS), 0), snap != INVALID_HANDLE_VALUE else { return [] }
+        defer { CloseHandle(snap) }
+        var names = Set<String>()
+        var e = PROCESSENTRY32W()
+        e.dwSize = DWORD(MemoryLayout<PROCESSENTRY32W>.size)
+        guard Process32FirstW(snap, &e) else { return [] }
+        repeat {
+            let name = withUnsafeBytes(of: e.szExeFile) { raw -> String in
+                let u = raw.bindMemory(to: UInt16.self)
+                return String(decoding: u.prefix { $0 != 0 }, as: UTF16.self)
+            }
+            names.insert(name.lowercased())
+        } while Process32NextW(snap, &e)
+        return names
+    }
+
     private static let base = "Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone"
 
     /// Lower-cased app names (exe names, or packaged apps' names) with the microphone open.

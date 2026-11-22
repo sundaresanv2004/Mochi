@@ -31,7 +31,7 @@ struct DayStats: Codable, Equatable {
         if typingSeconds >= 60 { parts.append("\(Self.minutes(typingSeconds)) typing") }
         if focusSessions > 0 { parts.append("\(focusSessions) focus session\(focusSessions == 1 ? "" : "s")") }
         if breaks > 0 { parts.append("\(breaks) break\(breaks == 1 ? "" : "s")") }
-        if parts.isEmpty { parts.append("\(Self.minutes(activeSeconds)) at your Mac") }
+        if parts.isEmpty { parts.append("\(Self.minutes(activeSeconds)) at your \(Computer.name)") }
         let care = treats + pets + plays
         let tail = breaks == 0 && activeSeconds > 2 * 3600 ? " Take a break soon?" : (care > 0 ? " Thanks for looking after me 💖" : " Nice work ✨")
         return "\(prefix): \(parts.joined(separator: ", ")).\(tail)"
