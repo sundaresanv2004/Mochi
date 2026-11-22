@@ -8,16 +8,24 @@ on:
 jobs:
   windows:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
     steps:
       - uses: actions/checkout@v4
+      # The version Mochi is developed and tested with on Windows.
       - uses: compnerd/gha-setup-swift@main
         with:
-          branch: swift-6.1-release
-          tag: 6.1-RELEASE
-      - name: Logic test
+          branch: swift-6.4.3-release
+          tag: 6.4.3-RELEASE
+      - name: Build
         run: |
           swift build
-          .build\debug\Mochi.exe --logic-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Logic test
+        run: |
+          & .\.build\debug\Mochi.exe --logic-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Package
         run: .\scripts\build-windows.ps1
       - uses: actions/upload-artifact@v4

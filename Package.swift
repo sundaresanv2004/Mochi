@@ -9,6 +9,11 @@ let package = Package(
         .target(
             name: "LiteCanvas",
             path: "Sources/LiteCanvas",
+            cxxSettings: [
+                // Newer Visual Studio C++ libraries refuse clang versions older than the one they were tested
+                // with; the little C++ here only uses the basics, so any Swift toolchain's clang is fine.
+                .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
+            ],
             linkerSettings: [
                 .linkedLibrary("d2d1", .when(platforms: [.windows])),
                 .linkedLibrary("dwrite", .when(platforms: [.windows])),
