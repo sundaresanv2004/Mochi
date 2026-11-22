@@ -203,6 +203,19 @@ on your `PATH` is a junction (scoop's `…\current`, Oracle's `javapath`), which
 through: put Swift's runtime folder (`%LOCALAPPDATA%\Programs\Swift\Runtimes\<version>\usr\bin`) first on `PATH`.
 `build-windows.ps1` does this for itself.
 
+## Releasing
+
+Push a version tag and GitHub Actions builds `Mochi-<version>.dmg` (macOS) and `Mochi-<version>-windows.zip`
+(Windows) and publishes them as a GitHub Release (`.github/workflows/release.yml`):
+
+```bash
+git tag v0.6.0 && git push origin v0.6.0
+```
+
+A version with a dash (`v0.6.0-beta1`) becomes a pre-release. You can also start one from Actions › Release ›
+Run workflow. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` as repository secrets to build releases with
+Google Calendar sign-in ready to use.
+
 ## Controls
 
 | Action | What happens |
