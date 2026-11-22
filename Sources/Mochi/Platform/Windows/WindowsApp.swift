@@ -50,6 +50,16 @@ final class WindowsApp: NSApplicationDelegate {
         }.store(in: &cancellables)
 
         watchPower()
+        SettingsServer.shared.onAction = { [weak self] name, args in self?.settingsAction(name, args) }
+
+        // Windows' UserDefaults only reaches the disk when asked: save every few seconds, and when Windows
+        // shuts down or signs out (WM_QUERYENDSESSION / WM_ENDSESSION), so nothing is lost if Mochi is killed.
+        let saver = Timer(timeInterval: 5, repeats: true) { _ in UserDefaults.standard.synchronize() }
+        RunLoop.main.add(saver, forMode: .common)
+        NSApplication.shared.onMessage = { msg, _, _ in
+            if msg == 0x0011 || msg == 0x0016 { WindowsApp.saveEverything() }
+        }
+        if CommandLine.arguments.contains("--settings") { openSettings() }
     }
 
     /// The main pet's face, small, for the notification area.
@@ -122,8 +132,13 @@ final class WindowsApp: NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         KeyCounter.shared.stop()
+        Self.saveEverything()
+    }
+
+    static func saveEverything() {
         DailyLog.shared.publish()
         PetMind.shared.save()
+        UserDefaults.standard.synchronize()
     }
 
     // MARK: Menu
@@ -186,8 +201,43 @@ final class WindowsApp: NSApplicationDelegate {
         return parent
     }
 
-    // Filled in with Phase 5 (settings and the Ask box).
-    private func ask() {}
-    private func openSettings() {}
+    /// Opens a text box above the pet; what you type is handed to the model (see `PetController.ask`).
+    private func ask() {
+        let screen = pet.currentScreen.visibleFrame
+        let above = NSPoint(x: pet.cx, y: pet.cy + pet.half + 46 * pet.scale)
+        AskBox.shared.show(above: above, in: screen, placeholder: "Ask \(PetSettings.shared.species.name) something…") { [weak self] text in
+            self?.pet.ask(text)
+        }
+    }
+
+    private func openSettings(_ page: String = "pet") { SettingsServer.shared.open(page: page) }
+
+    /// The settings page's buttons.
+    private func settingsAction(_ name: String, _ args: [String: Any]) {
+        let ai = PetAI.shared, google = GoogleCalendar.shared, debug = PetDebug.shared
+        switch name {
+        case "treat": pet.giveTreat()
+        case "play": pet.playBall()
+        case "sayHi": pet.greet()
+        case "bringBack": pet.bringBack()
+        case "aiTest": ai.test()
+        case "clearLines": ai.clearLines()
+        case "writeDiary": ai.writeDiary(DailyLog.shared.current)
+        case "forget": if let i = (args["index"] as? NSNumber)?.intValue { PetMemory.shared.forget(at: i) }
+        case "forgetAll": PetMemory.shared.forgetEverything()
+        case "googleSignIn": google.signIn()
+        case "googleCancel": google.cancelSignIn()
+        case "googleSync": google.sync()
+        case "googleSignOut": google.signOut()
+        case "testReminder": if let k = (args["kind"] as? String).flatMap(ReminderKind.init) { debug.fire?(.reminder(k)) }
+        case "testStretch": debug.fire?(.stretch)
+        case "testCalendar": debug.fire?(.calendar)
+        case "checkIn": debug.fire?(.checkIn)
+        case "skip": debug.fire?(.skip(minutes: (args["minutes"] as? NSNumber)?.intValue ?? 5))
+        case "nextScreen": debug.fire?(.nextScreen)
+        case "meet": if let k = SocialKind.allCases.first(where: { "\($0)" == args["kind"] as? String }) { debug.fire?(.meet(k)) }
+        default: break
+        }
+    }
 }
 #endif
