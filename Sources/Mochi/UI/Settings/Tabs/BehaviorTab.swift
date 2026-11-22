@@ -20,7 +20,7 @@ struct BehaviorTab: View {
                           subtitle: "Vibe to whatever is playing (Spotify, Music, YouTube in a browser…) and settle down for videos or calls.", isOn: $settings.reactToMedia)
                 RowDivider()
                 ToggleRow(symbol: "mic.fill", tint: .teal, title: "Stay quiet during calls",
-                          subtitle: "Pause speech bubbles while a calling app uses your microphone.",
+                          subtitle: "Pause speech bubbles and listening for \u{201C}Hey \(settings.species.name)\u{201D} while a calling app uses your microphone.",
                           isOn: $settings.quietOnCalls)
                 RowDivider()
                 ToggleRow(symbol: "waveform", tint: .purple, title: "React to other audio",

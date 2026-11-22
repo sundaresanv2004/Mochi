@@ -24,6 +24,15 @@ struct GeneralTab: View {
                     .labelsHidden()
                     .frame(width: 260)
                 }
+                RowDivider()
+                ToggleRow(symbol: "waveform", tint: .purple, title: "Listen for \u{201C}Hey \(settings.species.name)\u{201D}",
+                          subtitle: "Then say what you'd like: \u{201C}Hey \(settings.species.name), do a dance\u{201D}. Speech is turned into text on this Mac and never recorded.",
+                          isOn: $settings.voiceWake)
+                RowDivider()
+                SettingRow(symbol: "mic.fill", tint: .red, title: "Talk to \(settings.species.name)",
+                           subtitle: "Or choose Talk to \(settings.species.name) in the menu (⌘L). Without AI it knows simple requests like dance, treat or sleep.") {
+                    Button("Talk") { VoiceControl.shared.listenOnce(name: settings.species.name) }
+                }
             }
             CardSection(title: "System") {
                 SettingRow(symbol: "power", tint: .gray, title: "Launch at login",

@@ -14,6 +14,8 @@
     <key>NSHighResolutionCapable</key><true/>
     <key>NSCalendarsFullAccessUsageDescription</key><string>Mochi reads the start time and title of your upcoming events so your pet can remind you a few minutes before they begin. Nothing leaves your Mac.</string>
     <key>NSCalendarsUsageDescription</key><string>Mochi reads the start time and title of your upcoming events so your pet can remind you a few minutes before they begin. Nothing leaves your Mac.</string>
+    <key>NSMicrophoneUsageDescription</key><string>Mochi listens when you talk to your pet: after you choose Talk to Mochi, or say Hey Mochi if you turned that on. Speech is turned into text on your Mac.</string>
+    <key>NSSpeechRecognitionUsageDescription</key><string>Mochi turns what you say to your pet into text, on your Mac whenever it has the speech model for your language.</string>
     <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
 </dict>
 </plist>

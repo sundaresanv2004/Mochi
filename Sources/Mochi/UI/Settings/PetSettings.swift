@@ -140,6 +140,8 @@ final class PetSettings: ObservableObject {
     @Published var aiBanter: Bool { didSet { d.set(aiBanter, forKey: "aiBanter") } }
     @Published var aiMemory: Bool { didSet { d.set(aiMemory, forKey: "aiMemory") } }
     @Published var aiCommands: Bool { didSet { d.set(aiCommands, forKey: "aiCommands") } }
+    /// Listen for "Hey <pet name>" all the time (speech is recognised on this computer).
+    @Published var voiceWake: Bool { didSet { d.set(voiceWake, forKey: "voiceWake") } }
     /// Mirrors the system's login item (not stored here: macOS owns it).
     @Published var launchAtLogin = LoginItem.enabled
 
@@ -183,5 +185,6 @@ final class PetSettings: ObservableObject {
         aiBanter = d.object(forKey: "aiBanter") as? Bool ?? true
         aiMemory = d.object(forKey: "aiMemory") as? Bool ?? true
         aiCommands = d.object(forKey: "aiCommands") as? Bool ?? true
+        voiceWake = d.object(forKey: "voiceWake") as? Bool ?? false
     }
 }

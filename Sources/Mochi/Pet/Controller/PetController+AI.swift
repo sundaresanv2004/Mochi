@@ -66,23 +66,37 @@ extension PetController {
 
     // MARK: Typed requests
 
-    /// Something the human typed in the Ask box.
-    func ask(_ text: String) {
+    /// Something the human typed in the Ask box, or said (`spoken`; see `PetController+Voice`).
+    func ask(_ text: String, spoken: Bool = false) {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         touch()
+        if action == .sleep, canAct, !text.lowercased().contains("sleep") { action = .idle; remaining = 2 }
         guard PetAI.shared.on(.commands) else {
-            say("I can't understand typing yet. Switch on AI in Settings!", force: true, seconds: 5)
+            // No model: the pet still knows a few simple requests.
+            if let cmd = LocalCommands.match(text) {
+                let problem = perform(cmd)
+                say(problem ?? cmd.say ?? "Okay!", force: true, seconds: 5)
+            } else {
+                say(spoken ? "I heard \u{201C}\(text.prefix(60))\u{201D}, but I only know simple things like dance, treat or sleep. Switch on AI in Settings to chat!"
+                           : "I only know simple things like dance, treat or sleep. Switch on AI in Settings to chat!",
+                    force: true, seconds: 7)
+            }
             return
         }
-        if action == .sleep, canAct { action = .idle; remaining = 2 }
-        say("Hmm… 🤔", force: true, seconds: 30)
+        // Show what was heard while the model thinks, so a misheard word is easy to spot.
+        say(spoken ? "\u{201C}\(text.prefix(80))\u{201D} 🤔" : "Hmm… 🤔", force: true, seconds: 30)
         let wearable = Outfit.unlocked(at: mind.level).map { $0.label.lowercased() }.joined(separator: ", ")
         let extra = surroundings + " You can wear: \(wearable). You are wearing: \(wornOutfit.label.lowercased())."
         PetAI.shared.command(text, species: species, extra: extra) { [weak self] cmd in
             guard let self else { return }
             guard let cmd else {
-                self.say("Sorry, my brain didn't answer. Check the AI settings?", force: true, seconds: 5)
+                // The server didn't answer: a simple request still works.
+                if let local = LocalCommands.match(text) {
+                    self.say(self.perform(local) ?? local.say ?? "Okay!", force: true, seconds: 5)
+                } else {
+                    self.say("Sorry, my brain didn't answer. Check the AI settings?", force: true, seconds: 5)
+                }
                 return
             }
             if PetAI.shared.on(.memory) { PetMemory.shared.note("Your human asked: \"\(text.prefix(80))\"") }
@@ -90,7 +104,7 @@ extension PetController {
             let problem = self.perform(cmd)
             // The action may have said something of its own (a treat, a focus session); the reply goes on top.
             if let line = problem ?? cmd.say {
-                self.say(line, force: true, seconds: 6)
+                self.say(line, force: true, seconds: max(6, min(14, Double(line.count) * 0.07)))
             } else if self.saidCount == before {
                 self.say("Okay!", force: true)
             }

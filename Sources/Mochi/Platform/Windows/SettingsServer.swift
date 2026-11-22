@@ -174,7 +174,7 @@ enum SettingsState {
                 "reactToOtherAudio": s.reactToOtherAudio, "systemAware": s.systemAware, "aiEnabled": s.aiEnabled,
                 "aiBaseURL": s.aiBaseURL, "aiModel": s.aiModel, "aiHasKey": !s.aiKey.isEmpty, "aiDialogue": s.aiDialogue,
                 "aiReactions": s.aiReactions, "aiBrain": s.aiBrain, "aiBanter": s.aiBanter, "aiMemory": s.aiMemory,
-                "aiCommands": s.aiCommands, "launchAtLogin": LoginItem.enabled, "launchAtLoginAvailable": LoginItem.available
+                "aiCommands": s.aiCommands, "voiceWake": s.voiceWake, "launchAtLogin": LoginItem.enabled, "launchAtLoginAvailable": LoginItem.available
             ],
             "species": Species.allCases.map { ["id": $0.rawValue, "name": $0.name, "tagline": $0.tagline,
                                                "style": $0.style == .cute ? "cute" : "tough"] },
@@ -240,6 +240,7 @@ enum SettingsState {
         case "aiBanter": s.aiBanter = b
         case "aiMemory": s.aiMemory = b
         case "aiCommands": s.aiCommands = b
+        case "voiceWake": s.voiceWake = b
         case "launchAtLogin": s.launchAtLogin = LoginItem.set(b)
         default:
             // "reminder.water" = minutes (0 = off)

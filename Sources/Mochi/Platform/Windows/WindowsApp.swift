@@ -49,6 +49,7 @@ final class WindowsApp: NSApplicationDelegate {
             if on { GoogleCalendar.shared.sync() }
         }.store(in: &cancellables)
 
+        VoiceControl.shared.attach(to: pet, &cancellables)
         watchPower()
         SettingsServer.shared.onAction = { [weak self] name, args in self?.settingsAction(name, args) }
 
@@ -122,11 +123,13 @@ final class WindowsApp: NSApplicationDelegate {
             pet.pause(reason)
             companion?.pause(reason)
             AudioWatcher.shared.pause()
+            VoiceControl.shared.block(reason)
         } else {
             pauseReasons.remove(reason)
             pet.resume(reason)
             companion?.resume(reason)
             if pauseReasons.isEmpty { AudioWatcher.shared.resume() }
+            VoiceControl.shared.unblock(reason)
         }
     }
 
@@ -168,6 +171,7 @@ final class WindowsApp: NSApplicationDelegate {
         if PetAI.shared.on(.commands) {
             menu.addItem(withTitle: "Ask \(name)…") { [weak self] in self?.ask() }
         }
+        menu.addItem(withTitle: "Talk to \(name)") { [weak self] in self?.talk() }
         menu.addItem(withTitle: "Give a Treat") { [weak self] in self?.pet.giveTreat() }
         menu.addItem(withTitle: "Play Ball") { [weak self] in self?.pet.playBall() }
         menu.addItem(submenu("Interact", [
@@ -210,6 +214,9 @@ final class WindowsApp: NSApplicationDelegate {
         }
     }
 
+    /// Listens for one spoken request; the pet shows what it hears and answers in its bubble.
+    private func talk() { VoiceControl.shared.listenOnce(name: PetSettings.shared.species.name) }
+
     private func openSettings(_ page: String = "pet") { SettingsServer.shared.open(page: page) }
 
     /// The settings page's buttons.
@@ -220,6 +227,7 @@ final class WindowsApp: NSApplicationDelegate {
         case "play": pet.playBall()
         case "sayHi": pet.greet()
         case "bringBack": pet.bringBack()
+        case "talk": talk()
         case "aiTest": ai.test()
         case "clearLines": ai.clearLines()
         case "writeDiary": ai.writeDiary(DailyLog.shared.current)

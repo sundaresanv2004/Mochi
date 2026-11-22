@@ -26,6 +26,11 @@ jobs:
         run: |
           & .\.build\debug\Mochi.exe --logic-test
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Voice test
+        # Real speech through Windows' own recogniser; skipped on runners that have no recogniser installed.
+        run: |
+          & .\.build\debug\Mochi.exe --voice-test --allow-skip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Package
         run: .\scripts\build-windows.ps1
       - uses: actions/upload-artifact@v4

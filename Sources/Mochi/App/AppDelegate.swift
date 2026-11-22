@@ -51,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if on { GoogleCalendar.shared.sync() }
         }.store(in: &cancellables)
 
+        VoiceControl.shared.attach(to: pet, &cancellables)
         watchPower()
         if CommandLine.arguments.contains("--settings") { settingsWindow.show() }
     }
@@ -105,11 +106,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             pet.pause(reason)
             companion?.pause(reason)
             AudioWatcher.shared.pause()
+            VoiceControl.shared.block(reason)
         } else {
             pauseReasons.remove(reason)
             pet.resume(reason)
             companion?.resume(reason)
             if pauseReasons.isEmpty { AudioWatcher.shared.resume() }
+            VoiceControl.shared.unblock(reason)
         }
     }
 
@@ -141,6 +144,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if PetAI.shared.on(.commands) {
             menu.addItem(item("Ask \(name)…", "text.bubble", #selector(ask), key: "k"))
         }
+        menu.addItem(item("Talk to \(name)", "mic", #selector(talk), key: "l"))
         menu.addItem(item("Give a Treat", "gift", #selector(giveTreat)))
         menu.addItem(item("Play Ball", "soccerball", #selector(playBall)))
         menu.addItem(submenu("Interact", "hand.wave", [
@@ -194,6 +198,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// Listens for one spoken request; the pet shows what it hears and answers in its bubble.
+    @objc private func talk() { VoiceControl.shared.listenOnce(name: PetSettings.shared.species.name) }
     @objc private func sayHi() { pet.greet() }
     @objc private func petIt() { pet.petted() }
     @objc private func comeHere() { pet.comeHere() }

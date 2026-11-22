@@ -394,6 +394,100 @@ enum LogicTest {
         for _ in 0..<(10 * 60 * 30) { a.tick(CGFloat(dt)); b.tick(CGFloat(dt)) }
         check("left alone for 10 minutes, they meet at least 4 times", a.meetings + b.meetings >= 4 && a.isOnScreen() && b.isOnScreen(), "\(a.meetings + b.meetings) meetings")
 
+        print("--- Voice ---")
+        do {
+            func wake(_ t: String, _ name: String = "Mochi") -> String? { WakePhrase.command(in: t, name: name) }
+            check("\"Hey Mochi, do a dance\" gives the request", wake("Hey Mochi, do a dance.") == "do a dance", wake("Hey Mochi, do a dance.") ?? "nil")
+            check("the wake phrase on its own gives an empty request", wake("Hey Mochi") == "")
+            check("hi / okay / hello work too", wake("hi mochi sleep") == "sleep" && wake("OK, Mochi! Treat?") == "treat" && wake("hello mochi") == "")
+            check("a misheard name still counts (mochie, mocha)", wake("hey mochie dance") == "dance" && wake("hey mocha spin") == "spin")
+            check("the name opening the sentence counts", wake("Mochi, come here") == "come here")
+            check("a word or two of noise before it is fine", wake("um hey mochi stretch") == "stretch")
+            check("the name in the middle of a sentence doesn't wake it", wake("I love eating mochi ice cream") == nil)
+            check("nor does a different word", wake("hey mocking bird") == nil && wake("hey there") == nil)
+            check("short names must match exactly", wake("hey bob", "Bo") == nil && wake("hey bo dance", "Bo") == "dance")
+            check("two-word names", wake("hey captain paws dance", "Captain Paws") == "dance", wake("hey captain paws dance", "Captain Paws") ?? "nil")
+            check("every species' own name wakes it", Species.allCases.allSatisfy { wake("hey \($0.name) dance", $0.name) == "dance" },
+                  Species.allCases.filter { wake("hey \($0.name) dance", $0.name) != "dance" }.map(\.name).joined(separator: ", "))
+
+            func local(_ t: String) -> String { LocalCommands.match(t)?.action ?? "-" }
+            let expected: [(String, String)] = [("do a dance", "dance"), ("can I give you a treat", "treat"), ("go to sleep", "sleep"),
+                ("wake up", "wake"), ("come here", "come"), ("come down from there", "come_down"), ("play fetch", "ball"),
+                ("do a backflip", "flip"), ("spin around", "spin"), ("start a focus session", "focus"), ("stop focus", "stop_focus"),
+                ("how was my day", "check_in"), ("show me your power move", "power"), ("hello", "talk"), ("thank you", "talk")]
+            let wrong = expected.filter { local($0.0) != $0.1 }.map { "\($0.0) → \(local($0.0))" }
+            check("simple requests are understood without AI", wrong.isEmpty, wrong.joined(separator: "; "))
+            check("something it doesn't know isn't guessed", LocalCommands.match("what's the capital of France") == nil)
+            check("focus minutes from digits and words", LocalCommands.match("focus for 50 minutes")?.minutes == 50
+                  && LocalCommands.match("twenty five minute focus")?.minutes == 25 && LocalCommands.match("focus")?.minutes == 25)
+            let water = LocalCommands.match("remind me to drink water every hour")
+            check("a reminder request, with its interval", water?.action == "reminder" && water?.value == "water" && water?.minutes == 60,
+                  "\(water.map { "\($0.action) \($0.value ?? "") \($0.minutes ?? -1)" } ?? "nil")")
+            check("numbers: an hour, 2 hours, ninety", LocalCommands.number(in: ["an", "hour"]) == 60 && LocalCommands.number(in: ["2", "hours"]) == 120
+                  && LocalCommands.number(in: ["ninety"]) == 90)
+
+            // The pet: listening, the words, then the answer, all in its bubble.
+            let v = PetController()
+            v.lastSlow = .distantFuture
+            v.comeDown()
+            for _ in 0..<120 { v.tick(CGFloat(dt)) }
+            v.apply(Decision(action: .sleep, duration: 60))
+            v.hear(.wake)
+            check("\"Hey Mochi\" wakes it up and it listens", v.lastSaid == "👂 Yes?" && v.action != .sleep, "\(v.lastSaid) / \(v.action)")
+            v.hear(.partial("do a"))
+            check("the words show while they're being said", v.lastSaid == "\u{201C}do a\u{201D}", v.lastSaid)
+            v.hear(.heard("do a dance"))
+            check("without AI, a spoken request is carried out and answered", v.action == .dance && v.lastSaid == "Watch my moves! 💃", "\(v.action) / \(v.lastSaid)")
+            v.hear(.heard("what is the meaning of life"))
+            check("a request it doesn't know says what was heard", v.lastSaid.contains("meaning of life") && v.lastSaid.contains("AI"), v.lastSaid)
+            v.hear(.nothing)
+            check("nothing heard says so", v.lastSaid.contains("didn't catch"))
+            let chattiness = s.chattiness
+            s.chattiness = .off
+            v.hear(.ready)
+            check("it answers even with speech bubbles set to silent (you asked)", v.lastSaid.hasPrefix("👂"))
+            s.chattiness = chattiness
+            v.stop()
+
+            // Who listens when: a pretend engine records what it is told.
+            final class FakeEngine: SpeechEngine {
+                var onEvent: ((VoiceEvent) -> Void)?
+                var log: [String] = []
+                func listenOnce(name: String, source: VoiceSource) { log.append("once \(name)") }
+                func startWake(name: String, source: VoiceSource) { log.append("wake \(name)") }
+                func stop() { log.append("stop") }
+            }
+            let fake = FakeEngine()
+            let vc = VoiceControl(engine: fake)
+            var events: [VoiceEvent] = []
+            vc.onEvent = { events.append($0) }
+            vc.setWake(true, name: "Mochi")
+            check("turning on \"Hey Mochi\" starts listening", fake.log == ["wake Mochi"], fake.log.joined(separator: ", "))
+            vc.call(true, quiet: false)
+            check("with \"Stay quiet during calls\" off, a call doesn't stop it", vc.wakeRunning)
+            vc.call(true, quiet: true)
+            check("with it on, a call stops it", fake.log.last == "stop" && !vc.wakeRunning)
+            vc.call(true, quiet: false)
+            check("switching the setting off mid-call starts it again", vc.wakeRunning && fake.log.last == "wake Mochi")
+            vc.call(true, quiet: true)
+            vc.block("lock"); vc.call(false, quiet: true)
+            check("…and it stays off while the screen is locked", !vc.wakeRunning)
+            vc.unblock("lock")
+            check("…then starts again", vc.wakeRunning && fake.log.last == "wake Mochi")
+            vc.setWake(true, name: "Rex")
+            check("a new pet listens for its own name", fake.log.suffix(2) == ["stop", "wake Rex"], fake.log.joined(separator: ", "))
+            fake.log = []
+            vc.listenOnce(name: "Rex")
+            check("Talk to… pauses the wake listening and listens once", fake.log == ["stop", "once Rex"], fake.log.joined(separator: ", "))
+            fake.onEvent?(.heard("dance"))
+            check("the request reaches the pet, then wake listening resumes", events.last == .heard("dance") && vc.wakeRunning && fake.log.last == "wake Rex",
+                  fake.log.joined(separator: ", "))
+            fake.onEvent?(.failed("no microphone"))
+            check("if listening fails it switches itself off instead of retrying", !vc.wakeRunning && events.last == .failed("no microphone"))
+            vc.unblock("anything")
+            check("…and stays off", !vc.wakeRunning)
+        }
+
         print(failures == 0 ? "ALL PASSED" : "\(failures) FAILED")
         exit(failures == 0 ? 0 : 1)
     }
