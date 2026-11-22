@@ -7,6 +7,9 @@
 #include <dwrite.h>
 #include <wincodec.h>
 #include <algorithm>
+#include <map>
+#include <tuple>
+#include <string>
 #include <vector>
 #include "LiteCanvas.h"
 
@@ -35,6 +38,7 @@ struct LCCanvas {
     ID2D1DCRenderTarget *target = nullptr;
     ID2D1SolidColorBrush *brush = nullptr;
     bool drawing = false;
+    bool bound = false;
     std::vector<ID2D1Layer *> layers;
     std::vector<ID2D1PathGeometry *> masks;
     D2D1_MATRIX_3X2_F transform = D2D1::Matrix3x2F::Identity();
@@ -88,6 +92,29 @@ static ID2D1PathGeometry *geometry(LCPath p) {
     return g;
 }
 
+/// Stroke styles are cached: a frame strokes a hundred paths with a handful of different styles.
+static ID2D1StrokeStyle *strokeStyle(float width, int32_t cap, int32_t join, float miter,
+                                     const float *dashes, int32_t dashCount, float dashPhase) {
+    static std::map<std::tuple<int, int, float, std::vector<float>, float>, ID2D1StrokeStyle *> cache;
+    std::vector<float> scaled;
+    for (int32_t i = 0; i < dashCount; i++) scaled.push_back(dashes[i] / width);   // D2D dashes are in stroke widths
+    cap = cap < 0 || cap > 2 ? 0 : cap;
+    join = join < 0 || join > 2 ? 0 : join;
+    auto key = std::make_tuple((int)cap, (int)join, miter, scaled, dashCount > 0 ? dashPhase / width : 0.0f);
+    auto found = cache.find(key);
+    if (found != cache.end()) return found->second;
+    D2D1_CAP_STYLE caps[] = {D2D1_CAP_STYLE_FLAT, D2D1_CAP_STYLE_ROUND, D2D1_CAP_STYLE_SQUARE};
+    D2D1_LINE_JOIN joins[] = {D2D1_LINE_JOIN_MITER_OR_BEVEL, D2D1_LINE_JOIN_ROUND, D2D1_LINE_JOIN_BEVEL};
+    D2D1_STROKE_STYLE_PROPERTIES props = D2D1::StrokeStyleProperties(
+        caps[cap], caps[cap], caps[cap], joins[join], miter,
+        dashCount > 0 ? D2D1_DASH_STYLE_CUSTOM : D2D1_DASH_STYLE_SOLID, std::get<4>(key));
+    ID2D1StrokeStyle *style = nullptr;
+    gFactory->CreateStrokeStyle(props, dashCount > 0 ? scaled.data() : nullptr, (UINT32)scaled.size(), &style);
+    if (cache.size() >= 256) { for (auto &e : cache) e.second->Release(); cache.clear(); }
+    cache[key] = style;
+    return style;
+}
+
 extern "C" {
 
 LCCanvas *lc_create(int32_t width, int32_t height) {
@@ -138,8 +165,11 @@ uint8_t *lc_pixels(LCCanvas *c) { GdiFlush(); return c ? c->bits : nullptr; }
 
 int32_t lc_begin(LCCanvas *c) {
     if (!c || c->drawing) return -1;
-    RECT r = {0, 0, c->width, c->height};
-    if (FAILED(c->target->BindDC(c->dc, &r))) return -2;
+    if (!c->bound) {                     // the bitmap never changes, so binding it once is enough
+        RECT r = {0, 0, c->width, c->height};
+        if (FAILED(c->target->BindDC(c->dc, &r))) return -2;
+        c->bound = true;
+    }
     c->target->BeginDraw();
     c->target->SetTransform(D2D1::Matrix3x2F::Identity());
     c->target->Clear(D2D1::ColorF(0, 0, 0, 0));
@@ -152,6 +182,7 @@ int32_t lc_end(LCCanvas *c) {
     while (!c->layers.empty()) lc_pop_clip(c);
     HRESULT hr = c->target->EndDraw();
     c->drawing = false;
+    if (hr == (HRESULT)D2DERR_RECREATE_TARGET) c->bound = false;
     GdiFlush();
     return SUCCEEDED(hr) ? 0 : (int32_t)hr;
 }
@@ -176,19 +207,9 @@ void lc_stroke(LCCanvas *c, LCPath path, LCColor col, float width, int32_t cap, 
     if (!c || !c->drawing || width <= 0) return;
     ID2D1PathGeometry *g = geometry(path);
     if (!g) return;
-    D2D1_CAP_STYLE caps[] = {D2D1_CAP_STYLE_FLAT, D2D1_CAP_STYLE_ROUND, D2D1_CAP_STYLE_SQUARE};
-    D2D1_LINE_JOIN joins[] = {D2D1_LINE_JOIN_MITER_OR_BEVEL, D2D1_LINE_JOIN_ROUND, D2D1_LINE_JOIN_BEVEL};
-    D2D1_CAP_STYLE cs = caps[cap < 0 || cap > 2 ? 0 : cap];
-    std::vector<float> scaled;
-    for (int32_t i = 0; i < dashCount; i++) scaled.push_back(dashes[i] / width);   // D2D dashes are in stroke widths
-    D2D1_STROKE_STYLE_PROPERTIES props = D2D1::StrokeStyleProperties(
-        cs, cs, cs, joins[join < 0 || join > 2 ? 0 : join], miter,
-        dashCount > 0 ? D2D1_DASH_STYLE_CUSTOM : D2D1_DASH_STYLE_SOLID, dashCount > 0 ? dashPhase / width : 0);
-    ID2D1StrokeStyle *style = nullptr;
-    gFactory->CreateStrokeStyle(props, dashCount > 0 ? scaled.data() : nullptr, (UINT32)scaled.size(), &style);
+    ID2D1StrokeStyle *style = strokeStyle(width, cap, join, miter, dashes, dashCount, dashPhase);
     c->brush->SetColor(color(col));
     c->target->DrawGeometry(g, c->brush, width, style);
-    release(style);
     g->Release();
 }
 
@@ -249,18 +270,30 @@ void lc_pop_clip(LCCanvas *c) {
 
 int32_t lc_clip_depth(LCCanvas *c) { return c ? (int32_t)c->layers.size() : 0; }
 
-static IDWriteTextLayout *layout(const wchar_t *text, int32_t length, const wchar_t *family, float size, int32_t weight,
-                                 float width, float height, int32_t align, int32_t wrap) {
-    if (!ready()) return nullptr;
+/// Text formats are cached: a speech bubble or a label is drawn every frame with the same font.
+static IDWriteTextFormat *textFormat(const wchar_t *family, float size, int32_t weight, int32_t align, int32_t wrap) {
+    static std::map<std::tuple<std::wstring, float, int, int, int>, IDWriteTextFormat *> cache;
+    auto key = std::make_tuple(std::wstring(family), size, (int)weight, (int)align, (int)wrap);
+    auto found = cache.find(key);
+    if (found != cache.end()) return found->second;
     IDWriteTextFormat *format = nullptr;
     if (FAILED(gWrite->CreateTextFormat(family, nullptr, (DWRITE_FONT_WEIGHT)weight, DWRITE_FONT_STYLE_NORMAL,
                                         DWRITE_FONT_STRETCH_NORMAL, size, L"en-us", &format))) return nullptr;
     DWRITE_TEXT_ALIGNMENT a[] = {DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_TRAILING};
     format->SetTextAlignment(a[align < 0 || align > 2 ? 0 : align]);
     format->SetWordWrapping(wrap ? DWRITE_WORD_WRAPPING_WRAP : DWRITE_WORD_WRAPPING_NO_WRAP);
+    if (cache.size() >= 128) { for (auto &e : cache) e.second->Release(); cache.clear(); }
+    cache[key] = format;
+    return format;
+}
+
+static IDWriteTextLayout *layout(const wchar_t *text, int32_t length, const wchar_t *family, float size, int32_t weight,
+                                 float width, float height, int32_t align, int32_t wrap) {
+    if (!ready()) return nullptr;
+    IDWriteTextFormat *format = textFormat(family, size, weight, align, wrap);
+    if (!format) return nullptr;
     IDWriteTextLayout *l = nullptr;
     gWrite->CreateTextLayout(text, (UINT32)length, format, width, height, &l);
-    format->Release();
     return l;
 }
 

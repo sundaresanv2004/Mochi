@@ -406,12 +406,20 @@ final class GoogleCalendar: ObservableObject {
 
     /// Mochi needs an OAuth client ("Desktop app") from Google Cloud. `scripts/build-app.sh` writes one into
     /// the built app's Info.plist (GoogleClientID / GoogleClientSecret) from the GOOGLE_CLIENT_ID and
-    /// GOOGLE_CLIENT_SECRET environment variables. Without it, Settings asks you to paste your own.
+    /// GOOGLE_CLIENT_SECRET environment variables (on Windows, `scripts/build-windows.ps1` into Mochi.config.json). Without it, Settings asks you to paste your own.
     /// (Google treats a Desktop app's secret as not truly secret; it is kept out of git all the same.)
     static var bundledClientID: String { infoString("GoogleClientID") }
     private static var bundledSecret: String { infoString("GoogleClientSecret") }
     private static func infoString(_ key: String) -> String {
+        #if os(Windows)
+        // Windows has no Info.plist: scripts/build-windows.ps1 writes Mochi.config.json next to Mochi.exe.
+        let exe = URL(fileURLWithPath: LoginItem.executable).deletingLastPathComponent()
+        let config = (try? Data(contentsOf: exe.appendingPathComponent("Mochi.config.json")))
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        return (config?[key] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        #else
         (Bundle.main.object(forInfoDictionaryKey: key) as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        #endif
     }
 
     var clientID: String {

@@ -73,6 +73,7 @@ if args.contains("--system-test") {
     #endif
     var cpu = SystemInfo.cpuTicks()
     for s in NSScreen.screens { print("screen \(s.frame) visible \(s.visibleFrame)") }
+    print("Google Calendar client built in: \(GoogleCalendar.bundledClientID.isEmpty ? "no" : "yes")")
     for i in 0..<seconds {
         RunLoop.main.run(until: Date().addingTimeInterval(1))
         let now = SystemInfo.cpuTicks()

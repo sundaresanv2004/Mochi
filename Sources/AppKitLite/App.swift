@@ -110,17 +110,34 @@ public final class NSApplication {
         running = true
         delegate?.applicationDidFinishLaunching(Notification(name: Notification.Name("NSApplicationDidFinishLaunchingNotification")))
         var msg = MSG()
+        var loops = 0, lastReport = Date()
+        let profiling = ProcessInfo.processInfo.environment["MOCHI_PROFILE"] != nil
         while running {
+            loops += 1
+            if profiling, Date().timeIntervalSince(lastReport) >= 10 {
+                let p = NSWindow.profile
+                let line = String(format: "10s: %d loops, %d frames, draw %.1f ms/frame, push %.1f ms/frame, %d moves\n", loops, p.frames,
+                                  p.frames > 0 ? p.draw / Double(p.frames) * 1000 : 0, p.frames > 0 ? p.push / Double(p.frames) * 1000 : 0, p.moves)
+                if let h = FileHandle(forWritingAtPath: NSTemporaryDirectory() + "mochi-profile.txt") ?? {
+                    FileManager.default.createFile(atPath: NSTemporaryDirectory() + "mochi-profile.txt", contents: nil)
+                    return FileHandle(forWritingAtPath: NSTemporaryDirectory() + "mochi-profile.txt") }() {
+                    h.seekToEndOfFile(); h.write(Data(line.utf8)); h.closeFile()
+                }
+                NSWindow.profile = (0, 0, 0, 0); loops = 0; lastReport = Date()
+            }
             while PeekMessageW(&msg, nil, 0, 0, UINT(PM_REMOVE)) {
                 if msg.message == UINT(WM_QUIT) { running = false; break }
                 TranslateMessage(&msg)
                 DispatchMessageW(&msg)
             }
             guard running else { break }
-            // Timers and work queued on the main queue.
+            // Timers and work queued on the main queue, then sleep until the next timer is due or a message
+            // arrives (at most 15 ms, so work queued from other threads isn't kept waiting).
             _ = RunLoop.main.run(mode: .default, before: Date())
             displayPending()
-            _ = MsgWaitForMultipleObjects(0, nil, false, 8, DWORD(QS_ALLINPUT))
+            let next = RunLoop.main.limitDate(forMode: .default)?.timeIntervalSinceNow ?? 0.015
+            let wait = DWORD(max(1, min(15, Int(next * 1000))))
+            _ = MsgWaitForMultipleObjects(0, nil, false, wait, DWORD(QS_ALLINPUT))
         }
         delegate?.applicationWillTerminate(Notification(name: Notification.Name("NSApplicationWillTerminateNotification")))
         tray?.remove()

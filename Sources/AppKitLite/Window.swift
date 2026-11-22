@@ -308,6 +308,7 @@ open class NSWindow {
 
     private func move() {
         guard let hwnd, isVisible else { return }
+        Self.profile.moves += 1
         let r = Desktop.pixelRect(frame)
         _ = SetWindowPos(hwnd, nil, r.left, r.top, 0, 0, UINT(SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE))
     }
@@ -344,6 +345,8 @@ open class NSWindow {
         NSApplication.shared.windowNeedsDisplay(self)
     }
 
+    nonisolated(unsafe) static var profile: (frames: Int, draw: Double, push: Double, moves: Int) = (0, 0, 0, 0)
+
     /// Draws the content view into the bitmap and hands it to Windows.
     public func display() {
         guard let hwnd, let view = contentView else { return }
@@ -359,12 +362,14 @@ open class NSWindow {
             canvasSize = (w, h)
         }
         guard let canvas, lc_begin(canvas) == 0 else { return }
+        let t0 = Date()
         let ctx = NSGraphicsContext(canvas: canvas, base: LiteMatrix(a: s, b: 0, c: 0, d: -s, tx: 0, ty: frame.height * s))
         let previous = NSGraphicsContext.current
         NSGraphicsContext.current = ctx
         if !view.isHidden { view.draw(view.bounds) }
         NSGraphicsContext.current = previous
         _ = lc_end(canvas)
+        let t1 = Date()
 
         var dst = POINT(x: r.left, y: r.top)
         var size = SIZE(cx: w, cy: h)
@@ -373,6 +378,9 @@ open class NSWindow {
                                   SourceConstantAlpha: BYTE(max(0, min(255, alphaValue * 255))), AlphaFormat: BYTE(AC_SRC_ALPHA))
         let dc = lc_hdc(canvas).map { HDC(OpaquePointer($0)) }
         _ = UpdateLayeredWindow(hwnd, nil, &dst, &size, dc, &src, 0, &blend, DWORD(ULW_ALPHA))
+        Self.profile.frames += 1
+        Self.profile.draw += t1.timeIntervalSince(t0)
+        Self.profile.push += Date().timeIntervalSince(t1)
     }
 
     // MARK: Mouse
