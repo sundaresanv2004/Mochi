@@ -1,0 +1,109 @@
+name: Release
+
+# Builds Mochi for macOS (a .dmg) and Windows (a .zip) and publishes them as a GitHub Release.
+#
+#   git tag v0.6.0 && git push origin v0.6.0      a release
+#   git tag v0.6.0-beta1 && git push origin …     a pre-release (any version with a "-")
+#
+# or Actions › Release › Run workflow, with a version (this also creates the tag).
+#
+# Optional repository secrets GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (an OAuth client of type
+# "Desktop app") make Google Calendar sign-in work out of the box. They go into the built apps only.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, like 0.6.0 (creates the tag v0.6.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        env:
+          INPUT: ${{ github.event.inputs.version }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ -n "$INPUT" ]; then v="$INPUT"; else v="$TAG"; fi
+          v="${v#v}"
+          if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::'$v' isn't a version like 1.2.3 or 1.2.3-beta1"; exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+  macos:
+    needs: version
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Mochi.dmg
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: ./scripts/build-dmg.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/Mochi-*.dmg
+          if-no-files-found: error
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      # The version Mochi is developed and tested with on Windows.
+      - uses: compnerd/gha-setup-swift@main
+        with:
+          branch: swift-6.4.3-release
+          tag: 6.4.3-RELEASE
+      - name: Build Mochi.zip
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: .\scripts\build-windows.ps1 -Version "${{ needs.version.outputs.version }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/Mochi-*-windows.zip
+          if-no-files-found: error
+
+  release:
+    needs: [version, macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: Mochi ${{ needs.version.outputs.version }}
+          prerelease: ${{ contains(needs.version.outputs.version, '-') }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/Mochi-*.dmg
+            dist/Mochi-*-windows.zip
+          body: |
+            **macOS 13 or later:** download `Mochi-${{ needs.version.outputs.version }}.dmg`, open it and drag Mochi onto Applications. The first time, right-click Mochi and choose **Open** (it isn't signed by an Apple developer account).
+
+            **Windows 10 / 11:** download `Mochi-${{ needs.version.outputs.version }}-windows.zip`, unzip it anywhere and run `Mochi.exe`. If Windows says it protected your PC, choose **More info › Run anyway** (it isn't code-signed).
+
+            What's new is in [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/v${{ needs.version.outputs.version }}/CHANGELOG.md).

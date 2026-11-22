@@ -11,6 +11,7 @@
 - On Windows the pet says "PC" where it says "Mac" on the Mac, in its own lines and the AI prompts
 - `Mochi --system-test` prints what the pet can tell about the computer; `Mochi --render` works on Windows too
 - The pull request checks build Mochi on macOS and Windows
+- Pushing a version tag (`v1.2.3`) builds the macOS .dmg and the Windows .zip and publishes them as a GitHub Release
 - Google Calendar: sign in from Settings › Reminders and the pet says each event's reminders on schedule, at the times set on the event in Google Calendar (or the calendar's defaults), and optionally as it starts. Read-only, synced every five minutes, with the next few events and their reminder times shown in Settings. Declined and cancelled events are skipped, a reminder missed while the Mac slept is caught up (with the real time left) as long as the event hasn't started, and an event that is in both Google and the Calendar app is announced once. Several alerts at the same moment are said one after another instead of covering each other
 - `GOOGLE_CLIENT_ID=… GOOGLE_CLIENT_SECRET=… ./scripts/build-app.sh` builds the app with a Google OAuth client so sign-in works out of the box; the values go into the built app only, never into the repo. Without them, Settings asks for your own client
 - `Mochi --logic-test` checks how Google events turn into reminders and when each one fires
