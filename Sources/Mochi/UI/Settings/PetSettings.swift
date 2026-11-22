@@ -128,6 +128,10 @@ final class PetSettings: ObservableObject {
     @Published var quietOnCalls: Bool { didSet { d.set(quietOnCalls, forKey: "quietOnCalls") } }
     @Published var reactToOtherAudio: Bool { didSet { d.set(reactToOtherAudio, forKey: "reactToOtherAudio") } }
     @Published var systemAware: Bool { didSet { d.set(systemAware, forKey: "systemAware") } }
+    /// Notice when Claude Code is working (from its session logs) and say how long it's been at it.
+    @Published var claudeAware: Bool { didSet { d.set(claudeAware, forKey: "claudeAware") } }
+    /// Say each time Claude's 5-hour or weekly limit passes another 10%.
+    @Published var claudeLimitAlerts: Bool { didSet { d.set(claudeLimitAlerts, forKey: "claudeLimitAlerts") } }
     // AI (any OpenAI-compatible server). Off until a server and model are set.
     @Published var aiEnabled: Bool { didSet { d.set(aiEnabled, forKey: "aiEnabled") } }
     @Published var aiBaseURL: String { didSet { d.set(aiBaseURL, forKey: "aiBaseURL") } }
@@ -172,6 +176,8 @@ final class PetSettings: ObservableObject {
         quietOnCalls = d.object(forKey: "quietOnCalls") as? Bool ?? true
         reactToOtherAudio = d.object(forKey: "reactToOtherAudio") as? Bool ?? false
         systemAware = d.object(forKey: "systemAware") as? Bool ?? true
+        claudeAware = d.object(forKey: "claudeAware") as? Bool ?? true
+        claudeLimitAlerts = d.object(forKey: "claudeLimitAlerts") as? Bool ?? true
         aiEnabled = d.object(forKey: "aiEnabled") as? Bool ?? false
         aiBaseURL = d.string(forKey: "aiBaseURL") ?? "http://localhost:11434/v1"
         aiModel = d.string(forKey: "aiModel") ?? ""

@@ -48,6 +48,7 @@ extension PetController {
         }
         checkReminders(step, idle: idle, now)
         checkCalendar(now)
+        claudeTick(now)
         if now.timeIntervalSince(lastDiaryCheck) > 300 { lastDiaryCheck = now; PetAI.shared.diaryIfDue(log) }
         publishDebug(idle: idle, now)
 

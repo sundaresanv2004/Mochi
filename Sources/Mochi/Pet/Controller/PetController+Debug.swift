@@ -28,6 +28,7 @@ final class PetDebug: ObservableObject {
     @Published var pets = ""
     @Published var petState = ""
     @Published var screens = ""
+    @Published var claude = ""
 
     var fire: ((DebugAction) -> Void)?
 }
@@ -97,6 +98,15 @@ extension PetController {
         if audio.onCall { sound += settings.quietOnCalls ? " + on a call" : " + on a call (ignored: Stay quiet during calls is off)" }
         d.sound = sound
         d.soundApps = audio.sources
+        let c = claude.snapshot
+        if !settings.claudeAware { d.claude = "Off in Behavior" }
+        else if let status = Self.claudeStatus(c, now: now) {
+            var lines = [status]
+            if let u = c.usage { lines.append("Limits from \(u.source) at \(ClaudeWatcher.clock(u.observed))") }
+            if !c.liveCheck.isEmpty { lines.append("Last check: \(c.liveCheck)") }
+            if !claudeQueue.isEmpty { lines.append("Waiting to say: \(claudeQueue.map(\.line).joined(separator: " / "))") }
+            d.claude = lines.joined(separator: "\n")
+        } else { d.claude = "Claude Code isn't set up on this \(Computer.name)" }
 
         // Why the pet is doing what it is doing, in plain words.
         var why: [String] = []

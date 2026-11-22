@@ -171,7 +171,8 @@ enum SettingsState {
                 "googleCalendarAlerts": s.googleCalendarAlerts, "googleAlertAtStart": s.googleAlertAtStart,
                 "googleClientID": s.googleClientID, "reminderMinutes": s.reminderMinutes,
                 "breakReminders": s.breakReminders, "breakMinutes": s.breakMinutes, "quietOnCalls": s.quietOnCalls,
-                "reactToOtherAudio": s.reactToOtherAudio, "systemAware": s.systemAware, "aiEnabled": s.aiEnabled,
+                "reactToOtherAudio": s.reactToOtherAudio, "systemAware": s.systemAware, "claudeAware": s.claudeAware,
+                "claudeLimitAlerts": s.claudeLimitAlerts, "aiEnabled": s.aiEnabled,
                 "aiBaseURL": s.aiBaseURL, "aiModel": s.aiModel, "aiHasKey": !s.aiKey.isEmpty, "aiDialogue": s.aiDialogue,
                 "aiReactions": s.aiReactions, "aiBrain": s.aiBrain, "aiBanter": s.aiBanter, "aiMemory": s.aiMemory,
                 "aiCommands": s.aiCommands, "launchAtLogin": LoginItem.enabled, "launchAtLoginAvailable": LoginItem.available
@@ -230,6 +231,8 @@ enum SettingsState {
         case "quietOnCalls": s.quietOnCalls = b
         case "reactToOtherAudio": s.reactToOtherAudio = b
         case "systemAware": s.systemAware = b
+        case "claudeAware": s.claudeAware = b
+        case "claudeLimitAlerts": s.claudeLimitAlerts = b
         case "aiEnabled": s.aiEnabled = b
         case "aiBaseURL": s.aiBaseURL = str.trimmingCharacters(in: .whitespacesAndNewlines)
         case "aiModel": s.aiModel = str.trimmingCharacters(in: .whitespacesAndNewlines)

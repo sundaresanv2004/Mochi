@@ -93,6 +93,7 @@ keystrokes, your screen or your calendar.
 - Falls asleep when you step away, and welcomes you back when you return
 - **Busy Mac**: sweats when the processor is flat out or the Mac runs hot, and shivers when the battery is nearly empty
 - Comments on low battery, plugging in and mealtimes
+- **Claude Code**: says when Claude starts working on something (and on which project), how long it has been at it every five minutes, and how long it took when it's done. Quick answers are left alone. It also warns each time Claude's **5-hour or weekly limit** passes another 10%, with when it resets, more urgently from 80%. It reads Claude Code's own session logs and saved usage, and on a Mac asks Claude Code for fresh numbers the way `/usage` does (no prompt, no tokens). The menu shows it at a glance: *Claude: Working on Mochi for 12 min · 5h 27% · week 45%*. Both can be switched off in Behavior
 
 <details>
 <summary>See every act on every pet</summary>

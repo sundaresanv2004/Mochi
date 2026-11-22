@@ -36,6 +36,18 @@ struct BehaviorTab: View {
                 ToggleRow(symbol: "bolt.fill", tint: .orange, title: "Comment on my Mac",
                           subtitle: "Notice battery level, time of day and a busy processor.", isOn: $settings.systemAware)
             }
+
+            CardSection(title: "Claude Code",
+                        footer: "Mochi reads Claude Code's own session logs and usage on this Mac. It never sends Claude a prompt or spends tokens.") {
+                ToggleRow(symbol: "terminal.fill", tint: .orange, title: "Notice when Claude is working",
+                          subtitle: "Say when Claude starts on something, how long it's been at it, and when it's done.",
+                          isOn: $settings.claudeAware)
+                RowDivider()
+                ToggleRow(symbol: "gauge.with.dots.needle.67percent", tint: .red, title: "Warn about usage limits",
+                          subtitle: "Speak up each time the 5-hour or weekly limit passes another 10%.",
+                          isOn: $settings.claudeLimitAlerts)
+                    .disabled(!settings.claudeAware)
+            }
         }
     }
 

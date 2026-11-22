@@ -116,6 +116,8 @@ struct DebugTab: View {
                 EmptyView()
             }
             RowDivider()
+            SettingRow(symbol: "terminal.fill", tint: .orange, title: "Claude Code", subtitle: debug.claude) { EmptyView() }
+            RowDivider()
             SettingRow(symbol: "display.2", tint: .teal, title: "Displays", subtitle: debug.screens) {
                 Button("Send to next display") { fire(.nextScreen) }
                     .disabled(NSScreen.screens.count < 2)

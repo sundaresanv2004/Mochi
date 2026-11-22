@@ -166,6 +166,16 @@ final class PetController {
     var recentMeetings: [String: Date] = [:]        // "title|minutes" → when, so the same alert is said once
     var focusPlanned = 0
 
+    // Claude Code (see +Claude)
+    let claude = ClaudeWatcher.shared
+    var claudeBusySince: Date?              // when the current stretch of work began
+    var claudeProject: String?              // what it was working on, for the "done" line
+    var claudeAnnounced = false             // said that it started (quick answers never are)
+    var claudeNextUpdate = Date.distantFuture
+    var claudeAlerts = ClaudeLimitAlerts.load()
+    var claudeQueue: [(key: String, line: String, urgent: Bool)] = []   // limit warnings waiting to be said
+    var lastClaudeLine = Date.distantPast
+
     var treat: Treat?
     var ball: Ball?
     var lastKickLine = Date.distantPast
@@ -264,7 +274,13 @@ final class PetController {
             }
         }
 
-        if isMain { PetDebug.shared.fire = { [weak self] a in self?.debug(a) } }
+        if isMain {
+            PetDebug.shared.fire = { [weak self] a in self?.debug(a) }
+            settings.$claudeAware.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] on in
+                guard let self, self.timer != nil else { return }
+                if on { self.claude.start() } else { self.claude.stop(); self.claudeBusySince = nil; self.claudeQueue.removeAll() }
+            }.store(in: &cancellables)
+        }
         scheduleGreeting(Date())
     }
 
@@ -273,6 +289,7 @@ final class PetController {
     func start() {
         window.orderFrontRegardless()
         audio.start()
+        if isMain, settings.claudeAware { claude.start() }
         lastFrame = Date()
         schedule(30)
         DispatchQueue.main.asyncAfter(deadline: .now() + (isMain ? 0.8 : 2.4)) { [weak self] in

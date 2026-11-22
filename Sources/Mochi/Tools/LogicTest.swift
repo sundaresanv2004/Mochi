@@ -20,6 +20,8 @@ enum LogicTest {
         let saved = (s.reminderMinutes, s.secondPet)
         defer { s.reminderMinutes = saved.0; s.secondPet = saved.1 }
 
+        claudeTests(check)
+
         // MARK: Reminders
         print("--- Reminders ---")
         check("10 minutes is offered", ReminderKind.intervals.contains(10))
@@ -396,5 +398,130 @@ enum LogicTest {
 
         print(failures == 0 ? "ALL PASSED" : "\(failures) FAILED")
         exit(failures == 0 ? 0 : 1)
+    }
+
+    // MARK: Claude Code
+
+    static func claudeTests(_ report: (String, Bool, String) -> Void) {
+        print("--- Claude Code ---")
+        func check(_ name: String, _ ok: Bool, _ detail: String = "") { report(name, ok, detail) }
+        func line(_ o: [String: Any]) -> Substring {
+            Substring(String(data: try! JSONSerialization.data(withJSONObject: o), encoding: .utf8)!)
+        }
+        func user(_ content: Any, at t: String, meta: Bool = false, side: Bool = false) -> Substring {
+            line(["type": "user", "timestamp": t, "cwd": "/Users/me/projects/Mochi", "isMeta": meta, "isSidechain": side,
+                  "message": ["role": "user", "content": content]])
+        }
+        func assistant(_ stop: String?, at t: String, blocks: [String] = ["text"], side: Bool = false) -> Substring {
+            var m: [String: Any] = ["role": "assistant", "content": blocks.map { ["type": $0] }]
+            if let stop { m["stop_reason"] = stop }
+            return line(["type": "assistant", "timestamp": t, "isSidechain": side, "message": m])
+        }
+        let result: [[String: Any]] = [["type": "tool_result", "tool_use_id": "x", "content": "ok"]]
+        let prompt = user("fix the bug", at: "2026-11-22T10:00:00.000Z")
+        let noise = line(["type": "api-request-blob", "message": ["content": [["type": "tool_use"]]]])
+        let attachment = line(["type": "attachment", "timestamp": "2026-11-22T10:00:09.000Z"])
+
+        var r = ClaudeWatcher.turn(in: [prompt])
+        check("a prompt opens a turn, timed from the prompt", r.open == true && r.since == ClaudeWatcher.timestamp("2026-11-22T10:00:00.000Z") && r.project == "Mochi", "\(r)")
+        r = ClaudeWatcher.turn(in: [prompt, assistant("tool_use", at: "2026-11-22T10:00:05.000Z", blocks: ["tool_use"]),
+                                    user(result, at: "2026-11-22T10:00:06.000Z"), noise, attachment])
+        check("tool calls and results keep it open, still timed from the prompt", r.open == true && r.since == ClaudeWatcher.timestamp("2026-11-22T10:00:00.000Z"), "\(r)")
+        r = ClaudeWatcher.turn(in: [prompt, assistant("end_turn", at: "2026-11-22T10:01:00.000Z"), noise])
+        check("a final reply closes it", r.open == false)
+        r = ClaudeWatcher.turn(in: [prompt, assistant("tool_use", at: "2026-11-22T10:00:05.000Z", blocks: ["tool_use"]),
+                                    user([["type": "text", "text": "[Request interrupted by user for tool use]"]], at: "2026-11-22T10:00:07.000Z")])
+        check("an interruption closes it", r.open == false)
+        r = ClaudeWatcher.turn(in: [user("<command-name>/model</command-name>", at: "2026-11-22T10:00:00.000Z"),
+                                    user("<local-command-stdout>Set model</local-command-stdout>", at: "2026-11-22T10:00:00.100Z")])
+        check("a local command's output isn't work", r.open == false)
+        r = ClaudeWatcher.turn(in: [prompt, assistant("end_turn", at: "2026-11-22T10:01:00.000Z"),
+                                    assistant("tool_use", at: "2026-11-22T10:01:30.000Z", blocks: ["tool_use"], side: true)])
+        check("a subagent's work after the end doesn't reopen it", r.open == false)
+        r = ClaudeWatcher.turn(in: [prompt, assistant("end_turn", at: "2026-11-22T10:01:00.000Z"),
+                                    user("caveat", at: "2026-11-22T10:01:59.000Z", meta: true),
+                                    user("now add tests", at: "2026-11-22T10:02:00.000Z"),
+                                    assistant(nil, at: "2026-11-22T10:02:03.000Z", blocks: ["thinking"])])
+        check("the next prompt opens a new turn, timed from that prompt", r.open == true && r.since == ClaudeWatcher.timestamp("2026-11-22T10:02:00.000Z"), "\(r)")
+        check("nothing to go on says nothing", ClaudeWatcher.turn(in: [noise, attachment]).open == nil)
+        check("Claude's reset times parse (six fractional digits)", ClaudeWatcher.timestamp("2026-11-23T15:00:00.574281+00:00") != nil)
+
+        // Limits: freshest reading wins; a renewed window is dropped; reset times fill in.
+        let now = Date()
+        let saved = ClaudeWatcher.Usage(fiveHour: .init(used: 15, resetsAt: now + 3600), weekly: .init(used: 43, resetsAt: now + 86_400),
+                                        observed: now - 600, source: "saved")
+        let app = ClaudeWatcher.Usage(fiveHour: .init(used: 19, resetsAt: nil), weekly: .init(used: 44, resetsAt: nil), observed: now - 60, source: "app")
+        var m = ClaudeWatcher.merge([saved, app], now: now)
+        check("the freshest reading wins, with the reset time another one knows", m?.fiveHour?.used == 19 && m?.fiveHour?.resetsAt == now + 3600, "\(String(describing: m))")
+        let old = ClaudeWatcher.Usage(fiveHour: .init(used: 80, resetsAt: now - 10), weekly: nil, observed: now - 7200, source: "old")
+        m = ClaudeWatcher.merge([old], now: now)
+        check("a window that has renewed since is dropped", m == nil)
+        let history = #"{"version":2,"samples":[{"t":1000,"org":"a","u":{"fh":5}},{"t":3000,"org":"b","u":{"fh":90,"sd":10}},{"t":2000,"org":"a","u":{"fh":15,"sd":43}}]}"#
+        let d = ClaudeWatcher.desktopUsage(Data(history.utf8), organization: "a")
+        check("the desktop app's history is read for the same account", d?.fiveHour?.used == 15 && d?.weekly?.used == 43, "\(String(describing: d))")
+
+        // Every 10%, once; a new window starts over.
+        var a = ClaudeLimitAlerts()
+        let resets = now + 3600
+        func w(_ used: Double, _ r: Date? = resets) -> ClaudeWatcher.Window { .init(used: used, resetsAt: r) }
+        check("first sight is only noted", a.update("five_hour", w(43)) == nil)
+        check("…and the same step isn't said", a.update("five_hour", w(49)) == nil)
+        check("passing 50% is said", a.update("five_hour", w(50.5)) == 5)
+        check("…once", a.update("five_hour", w(55)) == nil)
+        check("jumping two steps says the latest", a.update("five_hour", w(72)) == 7)
+        check("microsecond reset jitter isn't a new window", a.update("five_hour", w(74, resets + 0.4)) == nil)
+        check("a new window starts over and 10% is said", a.update("five_hour", w(3, now + 5 * 3600)) == nil && a.update("five_hour", w(12, now + 5 * 3600)) == 1)
+        check("100% is said", a.update("five_hour", w(100, now + 5 * 3600)) == 10)
+
+        // The pet: start, every five minutes, done, and warnings.
+        let s = PetSettings.shared
+        let savedSettings = (s.claudeAware, s.claudeLimitAlerts)
+        let savedMarks = UserDefaults.standard.object(forKey: ClaudeLimitAlerts.key)      // the test's warnings mustn't stick
+        s.claudeAware = true; s.claudeLimitAlerts = true
+        defer {
+            s.claudeAware = savedSettings.0; s.claudeLimitAlerts = savedSettings.1
+            UserDefaults.standard.set(savedMarks, forKey: ClaudeLimitAlerts.key)
+        }
+        let pet = PetController()
+        pet.claudeAlerts = ClaudeLimitAlerts()
+        var clock = Date()
+        let start = clock
+        var snap = ClaudeWatcher.Snapshot(installed: true)
+        func run(_ seconds: Int) { for _ in 0..<seconds { clock += 1; snap.lastActivity = snap.sessions.isEmpty ? snap.lastActivity : clock; pet.claudeTick(clock, snap) } }
+        snap.sessions = [ClaudeWatcher.Session(id: "s1", project: "Mochi", since: start)]
+        var said = pet.saidCount
+        run(10)
+        check("a quick answer isn't announced", pet.saidCount == said)
+        run(15)
+        check("a longer task is announced", pet.saidCount == said + 1 && pet.lastSaid.contains("Claude"), pet.lastSaid)
+        said = pet.saidCount
+        run(300)
+        check("every five minutes it says how long", pet.saidCount == said + 1 && pet.lastSaid.contains("5 min"), pet.lastSaid)
+        snap.sessions = []
+        said = pet.saidCount
+        run(2)
+        check("when it's done it says how long it took", pet.saidCount == said + 1 && pet.lastSaid.contains("5 min"), pet.lastSaid)
+        check("…and names the project", pet.lastSaid.contains("Mochi"), pet.lastSaid)
+        snap.sessions = [ClaudeWatcher.Session(id: "s2", project: "Mochi", since: clock)]
+        run(5); snap.sessions = []; said = pet.saidCount; run(2)
+        check("a quick answer finishing says nothing", pet.saidCount == said)
+
+        snap.usage = ClaudeWatcher.Usage(fiveHour: w(18), weekly: w(43, now + 3 * 86_400), observed: clock, source: "test")
+        run(1)
+        said = pet.saidCount
+        snap.usage = ClaudeWatcher.Usage(fiveHour: w(21), weekly: w(43, now + 3 * 86_400), observed: clock, source: "test")
+        pet.lastClaudeLine = .distantPast; pet.lastReminder = .distantPast
+        run(1)
+        check("crossing 20% of the 5-hour limit is said", pet.saidCount == said + 1 && pet.lastSaid.contains("20%") && pet.lastSaid.contains("5-hour"), pet.lastSaid)
+        pet.focusEnds = clock + 600
+        snap.usage = ClaudeWatcher.Usage(fiveHour: w(31), weekly: w(43, now + 3 * 86_400), observed: clock, source: "test")
+        said = pet.saidCount
+        run(20)
+        check("a warning waits for a focus session", pet.saidCount == said && pet.claudeQueue.count == 1)
+        snap.usage = ClaudeWatcher.Usage(fiveHour: w(91), weekly: w(43, now + 3 * 86_400), observed: clock, source: "test")
+        run(1)
+        check("…but 90% doesn't wait, and replaces the 30% one", pet.lastSaid.contains("90%") && pet.claudeQueue.isEmpty, pet.lastSaid)
+        pet.focusEnds = nil
+        pet.stop()
     }
 }

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Claude Code: the pet notices when Claude is working, says so (with the project), tells you how long it's been at it every five minutes and how long it took when it finishes. Answers under 20 seconds are left alone. It reads the tail of Claude Code's session logs in `~/.claude/projects`, nothing more
+- Claude Code limits: a warning each time the 5-hour or weekly limit passes another 10%, with when it resets. They wait for a focus session or a call like reminders do, except from 80%. Numbers come from the freshest of Claude Code's saved usage, the Claude app's usage history and (macOS) Claude Code itself, asked the way `/usage` asks: a one-second headless run with no prompt, tools or hooks, every 5 minutes while Claude is busy and every 30 otherwise
+- The menu shows Claude's state and limits at a glance, the Debug page where they came from, and Behavior has a switch for each. `Mochi --claude-test [seconds]` prints what Mochi sees
+
 - **Windows support**: Mochi runs on Windows 10 and 11 from the same code. The pet walks on the taskbar and on
   windows, climbs the screen edges, and does everything it does on the Mac: moods, media acts, treats and toys,
   two pets, reminders, focus sessions, AI, Google Calendar. Its menu is on an icon in the notification area and on

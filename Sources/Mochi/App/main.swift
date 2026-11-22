@@ -113,6 +113,29 @@ if args.contains("--audio-test") {
     exit(0)
 }
 
+if args.contains("--claude-test") {
+    // Developer helper: prints what Mochi sees of Claude Code (sessions at work, limits and where they came
+    // from) whenever it changes, for 30 seconds or `--claude-test 120`.
+    let seconds = args.firstIndex(of: "--claude-test").flatMap { args.indices.contains($0 + 1) ? Double(args[$0 + 1]) : nil } ?? 30
+    let w = ClaudeWatcher.shared
+    let began = Date()
+    w.onChange = { s in
+        print(String(format: "%5.1fs", Date().timeIntervalSince(began)), PetController.claudeStatus(s) ?? "Claude Code isn't set up here")
+        for x in s.sessions { print("        session \(x.id.prefix(8)) on \(x.project ?? "?") since \(ClaudeWatcher.clock(x.since))") }
+        if let u = s.usage {
+            func show(_ w: ClaudeWatcher.Window?) -> String {
+                guard let w else { return "unknown" }
+                return "\(Int(w.used))%" + (w.resetsAt.map { ", " + Dialogue.claudeResets($0, now: Date()) } ?? "")
+            }
+            print("        5-hour \(show(u.fiveHour)) · weekly \(show(u.weekly)) · from \(u.source) at \(ClaudeWatcher.clock(u.observed))")
+        }
+        if !s.liveCheck.isEmpty { print("        live check: \(s.liveCheck)") }
+    }
+    w.start()
+    RunLoop.main.run(until: Date().addingTimeInterval(seconds))
+    exit(0)
+}
+
 #if os(macOS)
 let app = NSApplication.shared
 let delegate = AppDelegate()

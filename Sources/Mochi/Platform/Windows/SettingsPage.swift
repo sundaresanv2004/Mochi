@@ -59,6 +59,9 @@ input[type=text], input[type=password], select { font:inherit; padding:6px 10px;
  <div class="card"><h3>Keyboard and PC</h3>
   <div class="row"><div class="t"><b>Bop along while I type</b></div><label class="switch"><input type="checkbox" data-k="reactToTyping"><i></i></label></div>
   <div class="row"><div class="t"><b>Comment on my PC</b><small>Notice battery level, time of day and a busy processor.</small></div><label class="switch"><input type="checkbox" data-k="systemAware"><i></i></label></div></div>
+ <div class="card"><h3>Claude Code</h3>
+  <div class="row"><div class="t"><b>Notice when Claude is working</b><small>Say when Claude starts on something, how long it's been at it, and when it's done.</small></div><label class="switch"><input type="checkbox" data-k="claudeAware"><i></i></label></div>
+  <div class="row"><div class="t"><b>Warn about usage limits</b><small>Speak up each time the 5-hour or weekly limit passes another 10%.</small></div><label class="switch"><input type="checkbox" data-k="claudeLimitAlerts"><i></i></label></div></div>
  <div class="foot">Typing activity stays on your PC. Mochi counts keystrokes without reading them.</div></section>
 
 <section class="page" id="p-reminders"><h2>Reminders</h2><div class="sub">Gentle nudges while you work</div>

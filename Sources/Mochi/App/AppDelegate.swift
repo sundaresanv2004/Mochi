@@ -136,6 +136,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         host.frame = NSRect(origin: .zero, size: host.fittingSize)
         header.view = host
         menu.addItem(header)
+        if PetSettings.shared.claudeAware, let status = PetController.claudeStatus(ClaudeWatcher.shared.snapshot) {
+            let claude = NSMenuItem(title: "Claude: \(status)", action: nil, keyEquivalent: "")
+            claude.image = NSImage(systemSymbolName: "terminal", accessibilityDescription: nil)
+            claude.isEnabled = false
+            menu.addItem(claude)
+        }
         menu.addItem(.separator())
 
         if PetAI.shared.on(.commands) {
