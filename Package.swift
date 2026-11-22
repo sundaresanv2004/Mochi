@@ -28,6 +28,7 @@ let package = Package(
                 .linkedLibrary("shell32", .when(platforms: [.windows])),
                 .linkedLibrary("shcore", .when(platforms: [.windows])),
                 .linkedLibrary("dwmapi", .when(platforms: [.windows])),
+                .linkedLibrary("powrprof", .when(platforms: [.windows])),
             ]
         ),
         .executableTarget(

@@ -51,6 +51,44 @@ public final class NSApplication {
         messageClassName.withUnsafeBufferPointer { wc.lpszClassName = $0.baseAddress; _ = RegisterClassExW(&wc) }
         messageWindow = CreateWindowExW(0, messageClassName, nil, 0x8000_0000, 0, 0, 0, 0, nil, nil, liteInstance, nil)
         taskbarCreated = "TaskbarCreated".withCString(encodedAs: UTF16.self) { RegisterWindowMessageW($0) }
+        // Screen lock / switch user, and the display turning off, like NSWorkspace's notifications on the Mac.
+        // WTSRegisterSessionNotification(hwnd, NOTIFY_FOR_THIS_SESSION), looked up at run time.
+        if let lib = "wtsapi32.dll".withCString(encodedAs: UTF16.self, { LoadLibraryW($0) }),
+           let f = GetProcAddress(lib, "WTSRegisterSessionNotification") {
+            typealias Register = @convention(c) (HWND?, DWORD) -> WindowsBool
+            _ = unsafeBitCast(f, to: Register.self)(messageWindow, 0)
+        }
+        var display = GUID(Data1: 0x6FE6_9556, Data2: 0x704A, Data3: 0x47A0,
+                           Data4: (0x8F, 0x24, 0xC2, 0x8D, 0x93, 0x6F, 0xDA, 0x47))   // GUID_CONSOLE_DISPLAY_STATE
+        _ = RegisterPowerSettingNotification(messageWindow, &display, 0)       // DEVICE_NOTIFY_WINDOW_HANDLE
+    }
+
+    /// Turns Windows power and session messages into NSWorkspace notifications.
+    private func postPowerEvents(_ msg: UINT, _ wParam: WPARAM, _ lParam: LPARAM) {
+        let ws = NSWorkspace.shared.notificationCenter
+        func post(_ name: Notification.Name) { ws.post(name: name, object: nil) }
+        switch msg {
+        case 0x0218:                                                            // WM_POWERBROADCAST
+            switch wParam {
+            case 0x4: post(NSWorkspace.willSleepNotification)                   // PBT_APMSUSPEND
+            case 0x7, 0x12: post(NSWorkspace.didWakeNotification)               // PBT_APMRESUMESUSPEND / AUTOMATIC
+            case 0x8013:                                                        // PBT_POWERSETTINGCHANGE
+                guard let setting = UnsafeRawPointer(bitPattern: Int(lParam)) else { return }
+                // POWERBROADCAST_SETTING: a GUID (16 bytes), a length (4), then the data: 0 off, 1 on, 2 dimmed.
+                let state = setting.load(fromByteOffset: 20, as: UInt32.self)
+                post(state == 0 ? NSWorkspace.screensDidSleepNotification : NSWorkspace.screensDidWakeNotification)
+            default: break
+            }
+        case 0x02B1:                                                            // WM_WTSSESSION_CHANGE
+            switch wParam {
+            case 0x7: post(NSWorkspace.screenLockedNotification)                // WTS_SESSION_LOCK
+            case 0x8: post(NSWorkspace.screenUnlockedNotification)              // WTS_SESSION_UNLOCK
+            case 0x2, 0x4: post(NSWorkspace.sessionDidResignActiveNotification) // console / remote disconnect
+            case 0x1, 0x3: post(NSWorkspace.sessionDidBecomeActiveNotification) // console / remote connect
+            default: break
+            }
+        default: break
+        }
     }
 
     public func setActivationPolicy(_ policy: ActivationPolicy) {}
@@ -134,6 +172,7 @@ public final class NSApplication {
             NSScreen.invalidate()
             NotificationCenter.default.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
         }
+        postPowerEvents(msg, wParam, lParam)
         onMessage?(msg, wParam, lParam)
         return nil
     }
@@ -234,6 +273,9 @@ public final class NSWorkspace {
     public static let screensDidWakeNotification = Notification.Name("NSWorkspaceScreensDidWakeNotification")
     public static let sessionDidResignActiveNotification = Notification.Name("NSWorkspaceSessionDidResignActiveNotification")
     public static let sessionDidBecomeActiveNotification = Notification.Name("NSWorkspaceSessionDidBecomeActiveNotification")
+    /// Windows only: the screen was locked / unlocked (on the Mac these come from the distributed center).
+    public static let screenLockedNotification = Notification.Name("LiteScreenLocked")
+    public static let screenUnlockedNotification = Notification.Name("LiteScreenUnlocked")
 
     public var frontmostApplication: NSRunningApplication? { nil }
 
