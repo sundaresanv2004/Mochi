@@ -55,10 +55,10 @@ enum MediaClassifier {
 
         init?(app: String?) {
             let a = (app ?? "").lowercased()
-            if a.contains("com.google.chrome") || a.contains("chromium") { self = .chrome }
-            else if a.contains("firefox") || a.contains("mozilla") { self = .firefox }
+            if a.contains("com.google.chrome") || a.contains("chromium") || a == "chrome" || a.hasPrefix("chrome.") { self = .chrome }
+            else if a.contains("firefox") || a.contains("mozilla") || a.contains("308046b0af4a39cb") { self = .firefox }
             else if a.contains("com.apple.safari") || a.contains("safaritechnologypreview") { self = .safari }
-            else if a.contains("com.microsoft.edge") { self = .edge }
+            else if a.contains("com.microsoft.edge") || a.contains("msedge") { self = .edge }
             else if ["brave", "company.thebrowser", "opera", "vivaldi", "orion", "app.zen-browser", "duckduckgo", "sigmaos", "yandex"]
                         .contains(where: { a.contains($0) }) { self = .other }
             else { return nil }
@@ -86,9 +86,11 @@ enum MediaClassifier {
                               "com.apple.ibooks", "com.apple.books", "castbox", "podcast"]
     static let movieApps = ["com.apple.tv", "netflix", "com.amazon.aiv", "primevideo", "disney", "hbo", "com.wbd",
                             "hulu", "hotstar", "jiocinema", "crunchyroll", "plex", "infuse", "firecore", "iina",
-                            "videolan", "vlc", "quicktime", "mpv", "movist", "elmedia"]
+                            "videolan", "vlc", "quicktime", "mpv", "movist", "elmedia",
+                            "zunevideo", "potplayer", "mpc-hc", "mpc-be"]
     static let musicApps = ["spotify", "com.apple.music", "com.apple.itunes", "tidal", "deezer", "amazon.music",
-                            "soundcloud", "pandora", "vox", "swinsian", "doppler", "qobuz", "jiosaavn", "gaana"]
+                            "soundcloud", "pandora", "vox", "swinsian", "doppler", "qobuz", "jiosaavn", "gaana",
+                            "zunemusic", "applemusicwin", "itunes.exe", "amazonmusic", "foobar2000", "musicbee", "aimp"]
     static let streamingServices = ["netflix", "prime video", "disney+", "hotstar", "hbo max", "| max", "hulu",
                                     "apple tv+", "crunchyroll", "jiocinema", "zee5", "sonyliv"]
 

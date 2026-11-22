@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// What two pets can get up to together.
 enum SocialKind: String, CaseIterable, Identifiable {

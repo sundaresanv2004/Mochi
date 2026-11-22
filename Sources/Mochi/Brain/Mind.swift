@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(Combine)
 import Combine
+#else
+import AppKitLite
+#endif
 
 /// How a species leans. 1 = average; higher = more of it.
 struct Personality {

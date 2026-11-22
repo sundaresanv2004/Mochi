@@ -123,7 +123,7 @@ enum Dialogue {
     }
 
     // Busy Mac
-    static let busyMac = ["Phew, your Mac is working hard! 🥵", "So… much… computing…", "Is something heavy running? 💦"]
+    static let busyMac = ["Phew, your \(Computer.name) is working hard! 🥵", "So… much… computing…", "Is something heavy running? 💦"]
     static let hotMac = ["It's getting warm in here 🔥", "Your Mac is running hot. Give it a moment? 🌡"]
 
     // Calendar
@@ -199,8 +199,8 @@ enum Dialogue {
             Moment(key: "impressed", about: "your pet friend just did an impressive trick", lines: impressed),
             Moment(key: "newScreen", about: "you just crossed onto another display", lines: newScreen),
             Moment(key: "jealous", about: "your human petted the other pet and you want some too", lines: jealous),
-            Moment(key: "busyMac", about: "the Mac's processor has been flat out for a while", lines: busyMac),
-            Moment(key: "hotMac", about: "the Mac is running hot", lines: hotMac),
+            Moment(key: "busyMac", about: "the \(Computer.name)'s processor has been flat out for a while", lines: busyMac),
+            Moment(key: "hotMac", about: "the \(Computer.name) is running hot", lines: hotMac),
             Moment(key: "focusStart", about: "a focus session starts: you promise to keep quiet and cheer them on", lines: focusStart),
             Moment(key: "focusDone", about: "a focus session just finished: celebrate and suggest a break", lines: focusDone),
             Moment(key: "focusStopped", about: "your human stopped a focus session early", lines: focusStopped)

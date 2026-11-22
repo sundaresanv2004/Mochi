@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Power: frame timer, adaptive frame rate, pausing while the Mac sleeps.
 extension PetController {

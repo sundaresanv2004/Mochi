@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// The kind of thing the pet is watching or listening to, as far as drawing goes (the details of each act
 /// are in View/Acts; headphones for music are in PetView+Effects).

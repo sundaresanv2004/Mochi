@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Things worn on the head.
 extension PetView {

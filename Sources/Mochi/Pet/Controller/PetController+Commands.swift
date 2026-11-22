@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// What you can ask the pet to do (menu bar, right-click, settings), and focus sessions.
 extension PetController {

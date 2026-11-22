@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 
 /// Developer helper: `Mochi --render <dir>` writes a contact sheet of every pet and mood to a PNG.
@@ -121,3 +122,5 @@ extension Render {
         if let png = rep.representation(using: .png, properties: [:]) { try? png.write(to: URL(fileURLWithPath: path)) }
     }
 }
+
+#endif

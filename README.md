@@ -1,10 +1,10 @@
 # Mochi 🍡
 
-A tiny desktop pet for macOS. Pick one of ten pets, five cute and five tough, and it lives on your screen: it wanders along the Dock,
+A tiny desktop pet for macOS and Windows. Pick one of ten pets, five cute and five tough, and it lives on your screen: it wanders along the Dock,
 climbs the screen edges, hangs from the top, stands on your windows, says hi, and reacts when you
 click, drag or ignore it.
 
-![Platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)
+![Platform](https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Windows%2010%2F11-lightgrey)
 ![Swift](https://img.shields.io/badge/swift-5.9%2B-orange)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
@@ -135,8 +135,9 @@ is napping or just standing around.
 
 ## Requirements
 
-- macOS 13 (Ventura) or later
-- Swift 5.9+ toolchain (Xcode 15+ or the Command Line Tools)
+- macOS 13 (Ventura) or later, with a Swift 5.9+ toolchain (Xcode 15+ or the Command Line Tools)
+- or Windows 10 / 11 (64-bit), with the Swift toolchain (6.1+) and Visual Studio's C++ build tools to build it.
+  The packaged app needs nothing installed
 
 ## Run it
 
@@ -165,13 +166,50 @@ Without them (and with `swift run`), Settings › Reminders asks for your own OA
 The build is ad-hoc signed, so on first launch macOS may ask you to right-click the app and choose
 **Open**. Mochi lives in the menu bar (the icon matches your pet); there is no Dock icon.
 
+## Windows
+
+Download `Mochi-<version>-windows.zip` (or build it, below), unzip it anywhere and run `Mochi.exe`. The pet walks
+along the top of the taskbar, and its icon sits in the notification area (bottom right; Windows 11 puts new
+icons behind the **^** arrow until you drag them onto the taskbar). Click it, or right-click the pet, for the menu.
+
+To build it, install Swift (`winget install --id Swift.Toolchain -e`, which also needs Visual Studio or its Build
+Tools with the "Desktop development with C++" workload), then in PowerShell:
+
+```powershell
+git clone <repo-url>
+cd Mochi
+swift build
+.build\debug\Mochi.exe               # or: swift run
+.\scripts\build-windows.ps1          # dist\Mochi\Mochi.exe and dist\Mochi-<version>-windows.zip
+```
+
+`$env:GOOGLE_CLIENT_ID = "…"; $env:GOOGLE_CLIENT_SECRET = "…"; .\scripts\build-windows.ps1` builds it with a Google OAuth
+client (into `Mochi.config.json` next to `Mochi.exe`, never into the repo).
+
+Everything works the same as on the Mac, with these differences:
+
+- **Settings** open in your web browser: a page served by Mochi itself on `127.0.0.1` only, with a key that changes
+  every launch, so nothing else can reach it
+- **What's playing** comes from the Windows media controls (the media flyout), read by a small PowerShell helper
+  with no window; **calls** from the microphone privacy record (a chat app with the microphone on)
+- **Calendar alerts** from a local calendar aren't available (Windows only lets packaged apps read it);
+  **Google Calendar** works. Secrets (the AI key, the Google sign-in) go in Windows Credential Manager
+- **Launch at login** uses the per-user Run key (Settings › General, or Settings › Apps › Startup in Windows)
+- The pet runs on every display at the primary display's scale, so on a second display with a different scale
+  it looks a little bigger or smaller
+
+If `swift build` fails with "Invalid manifest" or a Swift program exits straight away with `0xC00004BC`, a folder
+on your `PATH` is a junction (scoop's `…\current`, Oracle's `javapath`), which Windows won't search for DLLs
+through: put Swift's runtime folder (`%LOCALAPPDATA%\Programs\Swift\Runtimes\<version>\usr\bin`) first on `PATH`.
+`build-windows.ps1` does this for itself.
+
 ## Controls
 
 | Action | What happens |
 | --- | --- |
 | Click the pet | Pets it (hearts and a happy hop) |
 | Drag and drop | Pick it up; let go near an edge to make it cling |
-| Right-click the pet or click the menu bar icon | A status card, then Give a Treat, Play Ball, Interact (say hi, pet, come here, trick, sleep), Focus Session, Bring Back, Settings, Quit |
+| Right-click the pet or click the menu bar icon (the tray icon on Windows) | A status card, then Give a Treat, Play Ball, Interact (say hi, pet, come here, trick, sleep), Focus Session, Bring Back, Settings, Quit |
 | Settings | **Pet**: choose a pet and see how it's doing. **Behavior**: what it's allowed to do and react to. **Reminders**: nudges, calendar alerts, daily check-in. **Today**: your day in numbers. **General**: size, speech bubbles, launch at login |
 | `⌘ ,` / `⌘ B` (menu open) | Open settings / bring the pet back |
 
@@ -183,12 +221,20 @@ ceiling, or in the air (falling). Walking along a surface and turning corners is
 `PetController`. Window tops are found with `CGWindowListCopyWindowInfo`, which only reads window
 frames, so no Screen Recording or Accessibility permission is needed.
 
+**On Windows** the same code runs unchanged on top of `AppKitLite` (`Sources/AppKitLite`), a small stand-in
+for the parts of AppKit and Combine that Mochi uses, compiled only on Windows: layered (per-pixel
+transparent) windows, displays and the cursor in AppKit's coordinates, `NSBezierPath`, colours, gradients and
+text drawn with Direct2D and DirectWrite (`Sources/LiteCanvas`, a little C++), menus, the tray icon and a
+message loop that also runs Foundation's run loop. The few things that differ by platform live in
+`Sources/Mochi/Platform/Windows` (`WindowsApp` is the Windows `AppDelegate`). Window tops come from
+`EnumWindows` and the taskbar from `Shell_TrayWnd`, again without any permission.
+
 ```
 Sources/Mochi
 ├── App/
 │   ├── main.swift                 entry point
-│   ├── AppDelegate.swift          menu bar + right-click menu
-│   └── LoginItem.swift            launch at login
+│   ├── AppDelegate.swift          menu bar + right-click menu (macOS)
+│   └── LoginItem.swift            launch at login (macOS)
 ├── Pet/
 │   ├── Controller/                the pet's window, 30fps loop and everything it does
 │   │   ├── PetController.swift    state, setup, start/stop
@@ -285,6 +331,8 @@ swift run Mochi --ai-test http://localhost:11434/v1 llama3.2
 - [ ] Real beat detection (needs audio-capture permission)
 - [ ] More pets and more tricks
 - [ ] Multi-monitor roaming
+- [x] Windows
+- [ ] Windows: per-display scale, local calendar alerts
 
 ## Contributing
 

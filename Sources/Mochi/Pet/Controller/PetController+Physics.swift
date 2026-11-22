@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Falling, landing, leaping, slipping and dragging.
 extension PetController {

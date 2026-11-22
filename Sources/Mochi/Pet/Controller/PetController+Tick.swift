@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// The per-frame update: physics, grip, toys, decisions, then drawing and the bubble.
 extension PetController {

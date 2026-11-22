@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// What every act is drawn with: where the face is, a paw in the pet's own colours, a drawing frame that
 /// turns with the pet, timing helpers, and the hooks the body and face call (one place, so each act file

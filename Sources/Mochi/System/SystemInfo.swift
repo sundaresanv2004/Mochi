@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import IOKit.ps
 
@@ -44,3 +45,5 @@ enum SystemInfo {
         return nil
     }
 }
+
+#endif

@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 
 /// A small floating text box above the pet for typing a request. Enter sends it, Escape or clicking away closes it.
@@ -71,3 +72,5 @@ final class AskPanel: NSPanel, NSWindowDelegate, NSTextFieldDelegate {
 
     func windowDidResignKey(_ notification: Notification) { orderOut(nil) }
 }
+
+#endif

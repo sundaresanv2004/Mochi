@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 
 /// Mochi runs without a Dock icon or menu bar, but text fields only get ⌘X / ⌘C / ⌘V / ⌘A / ⌘Z
@@ -28,3 +29,5 @@ enum EditMenu {
         NSApp.mainMenu = main
     }
 }
+
+#endif

@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(Combine)
 import Combine
+#else
+import AppKitLite
+#endif
 
 /// What the model asked the pet to do in answer to something you typed.
 struct PetCommand {
@@ -326,7 +330,7 @@ final class PetAI: ObservableObject {
             case .hello: return "A just ran over to say hello to B. They greet each other and chat a little."
             case .human: return "They gossip fondly about their human: habits, likes and quirks they have noticed."
             case .humanDay: return "They talk about how their human's day is going and what their human has been up to."
-            case .now: return "They talk about what is going on on the Mac right now."
+            case .now: return "They talk about what is going on on the \(Computer.name) right now."
             case .petLife: return "They talk about their own pet life: snacks, naps, games, dreams, the view from the Dock."
             }
         }
@@ -341,7 +345,7 @@ final class PetAI: ObservableObject {
         let t = DailyLog.shared.today
         var day: [String] = []
         if !t.isEmpty {
-            day.append("At the Mac for \(DayStats.minutes(t.activeSeconds)) so far today, typing for \(DayStats.minutes(t.typingSeconds)); "
+            day.append("At the \(Computer.name) for \(DayStats.minutes(t.activeSeconds)) so far today, typing for \(DayStats.minutes(t.typingSeconds)); "
                 + "\(t.focusSessions) focus session(s); \(t.breaks) break(s); "
                 + "\(t.treats) treat(s), \(t.pets) pet(s) and \(t.plays) ball game(s) given to the pets.")
         }
@@ -373,7 +377,7 @@ final class PetAI: ObservableObject {
         guard on(.banter) else { done(nil); return }
         let notes = humanNotes()
         let order = (0..<count).map { $0 % 2 == 0 ? "A" : "B" }.joined(separator: ", ")
-        let system = "You write tiny, charming dialogues between two desktop pets who live on someone's Mac screen and adore their human."
+        let system = "You write tiny, charming dialogues between two desktop pets who live on someone's \(Computer.name) screen and adore their human."
         var user = """
         A is \(a.name) the \(a.rawValue) (\(a.tagline.lowercased()); \(traits(a))).
         B is \(b.name) the \(b.rawValue) (\(b.tagline.lowercased()); \(traits(b))).
@@ -470,7 +474,7 @@ final class PetAI: ObservableObject {
         let s = settings.species
         let happenings = memory.happenings(on: stats.day)
         let numbers = [
-            "at the Mac for \(DayStats.minutes(stats.activeSeconds))",
+            "at the \(Computer.name) for \(DayStats.minutes(stats.activeSeconds))",
             "typing for \(DayStats.minutes(stats.typingSeconds))",
             "\(stats.focusSessions) focus session(s), \(stats.focusMinutes) minutes in total",
             "\(stats.breaks) break(s)",

@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 final class BubbleView: NSView {
     /// Follows the pet's size (see `PetSize.bubbleScale`): text, padding, tail and corners all shrink together.

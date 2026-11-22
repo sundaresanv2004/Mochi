@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 enum Mood { case idle, walk, sleep, happy, chase, held, jump, dance, stretch, dizzy, sad, power }
 

@@ -1,7 +1,18 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
+#if canImport(CryptoKit)
 import CryptoKit
+#endif
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(Network)
 import Network
+#endif
 
 /// Google Calendar: sign in once in Settings › Reminders, and the pet reads out each event's own
 /// notifications ("30 minutes before", "5 minutes before"…) when they fall due, just like Google would.
@@ -161,7 +172,11 @@ enum GoogleOAuth {
     /// Opens Google's sign-in page in the browser and waits for it to come back to Mochi.
     static func signIn(clientID: String, secret: String, receiver: LoopbackReceiver) async throws -> Tokens {
         let verifier = randomString(64)
+        #if canImport(CryptoKit)
         let challenge = Data(SHA256.hash(data: Data(verifier.utf8))).base64URL
+        #else
+        let challenge = Data(LiteSHA256.hash(Array(verifier.utf8))).base64URL
+        #endif
         let state = randomString(24)
         let port = try await receiver.start()
         let redirect = "http://127.0.0.1:\(port)"
@@ -268,6 +283,7 @@ private extension Data {
     }
 }
 
+#if canImport(Network)
 /// A tiny one-shot web server on 127.0.0.1 that catches Google's redirect after you sign in.
 /// It only listens on the loopback address, only while a sign-in is in progress, and stops after
 /// the first proper reply (or three minutes).
@@ -350,6 +366,7 @@ final class LoopbackReceiver: @unchecked Sendable {     // all state is touched 
         replyWaiter = nil
     }
 }
+#endif
 
 // MARK: - The connection
 
@@ -389,12 +406,20 @@ final class GoogleCalendar: ObservableObject {
 
     /// Mochi needs an OAuth client ("Desktop app") from Google Cloud. `scripts/build-app.sh` writes one into
     /// the built app's Info.plist (GoogleClientID / GoogleClientSecret) from the GOOGLE_CLIENT_ID and
-    /// GOOGLE_CLIENT_SECRET environment variables. Without it, Settings asks you to paste your own.
+    /// GOOGLE_CLIENT_SECRET environment variables (on Windows, `scripts/build-windows.ps1` into Mochi.config.json). Without it, Settings asks you to paste your own.
     /// (Google treats a Desktop app's secret as not truly secret; it is kept out of git all the same.)
     static var bundledClientID: String { infoString("GoogleClientID") }
     private static var bundledSecret: String { infoString("GoogleClientSecret") }
     private static func infoString(_ key: String) -> String {
+        #if os(Windows)
+        // Windows has no Info.plist: scripts/build-windows.ps1 writes Mochi.config.json next to Mochi.exe.
+        let exe = URL(fileURLWithPath: LoginItem.executable).deletingLastPathComponent()
+        let config = (try? Data(contentsOf: exe.appendingPathComponent("Mochi.config.json")))
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        return (config?[key] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        #else
         (Bundle.main.object(forInfoDictionaryKey: key) as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        #endif
     }
 
     var clientID: String {

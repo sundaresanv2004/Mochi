@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Once-a-second awareness: needs, idle, battery, load, reminders and calendar (sound is in +Media).
 extension PetController {
@@ -54,7 +58,7 @@ extension PetController {
     func welcomeBack() {
         guard isMain else { return }
         log.tookBreak()
-        react("Your human just came back to the Mac after a few minutes away", fallback: "Welcome back! 👋")
+        react("Your human just came back to the \(Computer.name) after a few minutes away", fallback: "Welcome back! 👋")
         view.spawnHearts(3)
         if canAct { apply(Decision(action: .happy, duration: 2)) }
     }
@@ -67,8 +71,8 @@ extension PetController {
         case 12: react("It just turned noon: lunch time", fallback: "Lunch time! 🍱")
         case 17: react("It just turned 5 pm: the working day is nearly over", fallback: "Almost done for the day? 🌇")
         case 18: if settings.dailyCheckIn { say(log.current.summary(prefix: "Today"), seconds: 7) }
-        case 22: react("It just turned 10 pm and your human is still at the Mac", fallback: "Getting late… bedtime soon? 🌙")
-        case 0: react("It is past midnight and your human is still at the Mac", fallback: "It's past midnight! Time to sleep? 😴", note: true)
+        case 22: react("It just turned 10 pm and your human is still at the \(Computer.name)", fallback: "Getting late… bedtime soon? 🌙")
+        case 0: react("It is past midnight and your human is still at the \(Computer.name)", fallback: "It's past midnight! Time to sleep? 😴", note: true)
         default: break
         }
     }
@@ -78,13 +82,13 @@ extension PetController {
         lastBattery = now
         guard let b = SystemInfo.battery() else { return }
         if let was = wasCharging, !was, b.charging {
-            react("The Mac's charger was just plugged in", fallback: "Ahh, power! ⚡")
+            react("The \(Computer.name)'s charger was just plugged in", fallback: "Ahh, power! ⚡")
             view.spawnHearts(2)
         }
         wasCharging = b.charging
         if b.level <= 15, !b.charging, !batteryWarned {
             batteryWarned = true
-            react("The Mac's battery is down to \(b.level)% and it is not charging: ask to be plugged in and mention the number",
+            react("The \(Computer.name)'s battery is down to \(b.level)% and it is not charging: ask to be plugged in and mention the number",
                   fallback: "Battery's at \(b.level)%. Plug me in? 🔋", force: true)
         }
         if b.charging || b.level > 30 { batteryWarned = false }
@@ -105,7 +109,7 @@ extension PetController {
         view.sweat = busySeconds >= 10
         if busySeconds >= 25, now > busyCooldown, canAct, action != .sleep {
             busyCooldown = now.addingTimeInterval(600)
-            react("The Mac's processor has been working flat out for half a minute, something heavy is running",
+            react("The \(Computer.name)'s processor has been working flat out for half a minute, something heavy is running",
                   fallback: Dialogue.busyMac.randomElement() ?? "Phew!")
         }
         let state = ProcessInfo.processInfo.thermalState
@@ -113,7 +117,7 @@ extension PetController {
             view.sweat = true
             if now > hotCooldown {
                 hotCooldown = now.addingTimeInterval(900)
-                react("The Mac is running hot", fallback: Dialogue.hotMac.randomElement() ?? "It's warm in here!")
+                react("The \(Computer.name) is running hot", fallback: Dialogue.hotMac.randomElement() ?? "It's warm in here!")
             }
         }
     }

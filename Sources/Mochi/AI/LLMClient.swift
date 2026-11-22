@@ -1,5 +1,7 @@
 import Foundation
-import Security
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Talks to any server that speaks the OpenAI chat-completions API: Ollama, LM Studio, llama.cpp,
 /// OpenRouter, OpenAI itself… Only `POST {base}/chat/completions` and `GET {base}/models` are used.
@@ -46,7 +48,9 @@ struct LLMClient {
     private static let session: URLSession = {
         let c = URLSessionConfiguration.ephemeral
         c.timeoutIntervalForRequest = 90
+        #if !os(Windows)
         c.waitsForConnectivity = false
+        #endif
         return URLSession(configuration: c)
     }()
 
@@ -168,34 +172,5 @@ struct LLMClient {
         guard !s.isEmpty, !s.hasPrefix("{"), !s.hasPrefix("[") else { return nil }
         if s.count > limit { s = String(s.prefix(limit - 1)).trimmingCharacters(in: .whitespaces) + "…" }
         return s
-    }
-}
-
-/// Secrets live in the login keychain, not in the preferences file: the AI server's API key, and the
-/// Google Calendar sign-in. Each has its own item, so reading one never touches the others.
-enum Keychain {
-    static let llm = "com.mochi.pet.llm"
-    static let google = "com.mochi.pet.google"
-
-    static func read(service: String = llm, account: String = "apiKey") -> String {
-        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                kSecAttrService as String: service,
-                                kSecAttrAccount as String: account,
-                                kSecReturnData as String: true,
-                                kSecMatchLimit as String: kSecMatchLimitOne]
-        var out: AnyObject?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return "" }
-        return String(decoding: data, as: UTF8.self)
-    }
-
-    static func write(_ value: String, service: String = llm, account: String = "apiKey") {
-        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                kSecAttrService as String: service,
-                                kSecAttrAccount as String: account]
-        SecItemDelete(q as CFDictionary)
-        guard !value.isEmpty else { return }
-        var add = q
-        add[kSecValueData as String] = Data(value.utf8)
-        SecItemAdd(add as CFDictionary, nil)
     }
 }

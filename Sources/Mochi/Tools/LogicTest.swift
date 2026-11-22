@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Developer helper: `Mochi --logic-test` runs the reminder clocks and twenty simulated minutes of
 /// ordinary pet life without waiting, and prints PASS / FAIL lines.

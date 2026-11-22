@@ -42,7 +42,11 @@ final class NowPlaying {
     /// Called on the main thread whenever `state` changes.
     var onChange: (() -> Void)?
 
+    #if os(Windows)
+    private var process: HiddenProcess?
+    #else
     private var process: Process?
+    #endif
     private var buffer = Data()
     private var wanted = false
     private var failures = 0
@@ -64,6 +68,18 @@ final class NowPlaying {
         if state != nil { state = nil; onChange?() }
     }
 
+    #if os(Windows)
+    /// Windows: a PowerShell helper reads the system media controls (the same source as the media flyout)
+    /// and reports changes in the same JSON lines as the macOS helper. No console window, no permission.
+    private func launch() {
+        let p = HiddenProcess(executable: HiddenProcess.powershell,
+                              arguments: ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                                          "-EncodedCommand", HiddenProcess.encode(Self.windowsScript)])
+        p.onOutput = { [weak self] data in DispatchQueue.main.async { self?.received(data) } }
+        p.onExit = { [weak self, weak p] in DispatchQueue.main.async { self?.ended(p) } }
+        if p.start() { process = p } else { process = nil; ended(nil) }
+    }
+    #else
     private func launch() {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
@@ -87,11 +103,18 @@ final class NowPlaying {
             ended(nil)
         }
     }
+    #endif
 
     /// The helper stopped. Unless Mochi asked it to, start it again, backing off if it keeps failing:
     /// meanwhile `state` is nil and the audio watcher falls back to watching the speakers.
-    private func ended(_ p: Process?) {
-        guard p == nil || p === process else { return }
+    #if os(Windows)
+    private func ended(_ p: HiddenProcess?) { stopped(p === process || p == nil) }
+    #else
+    private func ended(_ p: Process?) { stopped(p == nil || p === process) }
+    #endif
+
+    private func stopped(_ current: Bool) {
+        guard current else { return }
         process = nil
         buffer.removeAll()
         if state != nil { state = nil; onChange?() }
@@ -167,4 +190,53 @@ final class NowPlaying {
       $.NSThread.sleepForTimeInterval(\(interval));
     }
     """
+
+    #if os(Windows)
+    /// Runs in PowerShell. Reads the media session every `interval` seconds (preferring one that is playing),
+    /// prints a line when anything changes, and quits as soon as Mochi does.
+    private static var windowsScript: String { """
+    $ErrorActionPreference = 'Stop'
+    [Console]::OutputEncoding = [Text.Encoding]::UTF8
+    $parent = \(ProcessInfo.processInfo.processIdentifier)
+    function Say($o) { [Console]::Out.WriteLine(($o | ConvertTo-Json -Compress)); [Console]::Out.Flush() }
+    try {
+      Add-Type -AssemblyName System.Runtime.WindowsRuntime
+      $asTask = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
+        $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' } | Select-Object -First 1
+      function Await($op, [Type]$t) { $task = $asTask.MakeGenericMethod($t).Invoke($null, @($op)); [void]$task.Wait(-1); $task.Result }
+      $M = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
+      $P = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties, Windows.Media.Control, ContentType = WindowsRuntime]
+      $mgr = Await ($M::RequestAsync()) $M
+    } catch { Say @{ error = "$_" }; exit 1 }
+    $names = @{ 'chrome' = 'Google Chrome'; 'msedge' = 'Microsoft Edge'; '308046b0af4a39cb' = 'Firefox'; 'brave' = 'Brave';
+                'spotify.exe' = 'Spotify'; 'spotify' = 'Spotify'; 'opera' = 'Opera'; 'vivaldi' = 'Vivaldi' }
+    $last = ''
+    while ($true) {
+      if (-not (Get-Process -Id $parent -ErrorAction SilentlyContinue)) { break }
+      try {
+        $s = $null
+        foreach ($x in $mgr.GetSessions()) { if ($x.GetPlaybackInfo().PlaybackStatus.ToString() -eq 'Playing') { $s = $x; break } }
+        if ($null -eq $s) { $s = $mgr.GetCurrentSession() }
+        if ($null -eq $s) { $o = [ordered]@{ playing = $false; app = $null } }
+        else {
+          $info = $s.GetPlaybackInfo()
+          $props = Await ($s.TryGetMediaPropertiesAsync()) $P
+          $tl = $s.GetTimelineProperties()
+          $type = 0
+          if ($null -ne $info.PlaybackType) { switch ($info.PlaybackType.ToString()) { 'Music' { $type = 1 } 'Video' { $type = 2 } } }
+          $app = $s.SourceAppUserModelId
+          $key = $app.ToLower()
+          $name = $names[$key]
+          if (-not $name) { $name = ($app -split '!')[-1] -replace '\\.exe$', '' -replace '^.*\\.', '' }
+          $o = [ordered]@{ playing = ($info.PlaybackStatus.ToString() -eq 'Playing'); app = $key; name = $name;
+                           title = $props.Title; artist = $props.Artist; album = $props.AlbumTitle;
+                           duration = [math]::Round(($tl.EndTime - $tl.StartTime).TotalSeconds); type = $type }
+        }
+        $line = $o | ConvertTo-Json -Compress
+      } catch { $line = (@{ error = "$_" } | ConvertTo-Json -Compress) }
+      if ($line -ne $last) { [Console]::Out.WriteLine($line); [Console]::Out.Flush(); $last = $line }
+      Start-Sleep -Milliseconds \(Int(interval * 1000))
+    }
+    """ }
+    #endif
 }

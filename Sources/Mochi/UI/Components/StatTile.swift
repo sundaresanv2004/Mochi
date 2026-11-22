@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 
 struct StatTile: View {
@@ -21,3 +22,5 @@ struct StatTile: View {
         .accessibilityLabel("\(label): \(value)")
     }
 }
+
+#endif

@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(Combine)
 import Combine
+#else
+import AppKitLite
+#endif
 
 enum Chattiness: String, CaseIterable, Identifiable {
     case off, quiet, normal, chatty

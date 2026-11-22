@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// A flat place the pet can stand: the Dock/screen bottom (id 0) or the top edge of a window.
 struct Platform {
@@ -39,6 +43,7 @@ enum WindowScanner {
         return scannedPlatforms
     }
 
+#if os(macOS)
     private static func readDockIsShowing() -> Bool {
         guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
                                                     kCGNullWindowID) as? [[String: Any]] else { return true }
@@ -89,4 +94,8 @@ enum WindowScanner {
         }
         return result
     }
+#else
+    private static func readDockIsShowing() -> Bool { WindowsDesktop.taskbarIsShowing() }
+    private static func readPlatforms(in f: NSRect) -> [Platform] { WindowsDesktop.platforms(in: f) }
+#endif
 }

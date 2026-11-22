@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 
 /// A thin capsule meter with an icon: one of the pet's needs.
@@ -32,3 +33,5 @@ struct Meter: View {
         .accessibilityLabel("\(label) \(Int((value * 100).rounded())) percent")
     }
 }
+
+#endif

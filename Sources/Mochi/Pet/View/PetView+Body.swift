@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// The body: squash and stretch, shadow, shape and shading.
 extension PetView {

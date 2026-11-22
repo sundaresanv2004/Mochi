@@ -1,3 +1,4 @@
+#if os(macOS)
 import EventKit
 import Foundation
 
@@ -59,3 +60,5 @@ final class CalendarWatcher {
         return alerts
     }
 }
+
+#endif

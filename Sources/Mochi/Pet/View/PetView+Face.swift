@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Eyes, cheeks, mouths and eyewear, plus small drawing helpers.
 extension PetView {

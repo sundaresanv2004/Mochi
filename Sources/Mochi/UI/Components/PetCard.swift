@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 import AppKit
 
@@ -25,3 +26,5 @@ struct PetCard: View {
         .contentShape(RoundedRectangle(cornerRadius: 10))
     }
 }
+
+#endif

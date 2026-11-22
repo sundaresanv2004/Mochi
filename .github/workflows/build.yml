@@ -1,0 +1,41 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      # The version Mochi is developed and tested with on Windows.
+      - uses: compnerd/gha-setup-swift@main
+        with:
+          branch: swift-6.4.3-release
+          tag: 6.4.3-RELEASE
+      - name: Build
+        run: |
+          swift build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Logic test
+        run: |
+          & .\.build\debug\Mochi.exe --logic-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package
+        run: .\scripts\build-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mochi-windows
+          path: dist/Mochi-*-windows.zip
+
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: swift build

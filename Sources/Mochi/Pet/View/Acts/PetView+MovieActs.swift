@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Films and shows: 3D cinema, blanket burrito, soda and nachos, scary scene, tearjerker. The pet is quiet
 /// and still during a film (see the brain), so these are cosy, slow acts; the screen's glow is on them all.

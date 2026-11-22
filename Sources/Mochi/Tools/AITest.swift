@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Developer helper: `Mochi --ai-test <server> <model> [key]` runs every AI feature once against a real
 /// (or mock) OpenAI-compatible server and prints what came back. Uses a throwaway data folder, and puts

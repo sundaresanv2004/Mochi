@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// More than one display: the pet lives on one screen at a time and hops across where two screens touch.
 extension PetController {

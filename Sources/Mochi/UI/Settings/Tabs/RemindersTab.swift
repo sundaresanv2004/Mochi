@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 
 struct RemindersTab: View {
@@ -142,3 +143,5 @@ struct RemindersTab: View {
         .modifier(SettingsSurface())
     }
 }
+
+#endif

@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
 /// Podcasts and audiobooks: earbud nodder, note-taker, coffee break, retro radio, deep thinker.
 /// Calm acts: slow movements, nothing on the beat.

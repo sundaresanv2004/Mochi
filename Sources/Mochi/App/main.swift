@@ -1,17 +1,25 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import AppKitLite
+#endif
 
+#if os(macOS)
 // Earlier versions run with `swift run` saved under the name "Mochi"; the app now always uses its
 // bundle identifier. Bring the old pet along the first time.
 if UserDefaults.standard.object(forKey: "mind.firstMet") == nil, Bundle.main.bundleIdentifier != "Mochi",
    let old = UserDefaults.standard.persistentDomain(forName: "Mochi") {
     for (key, value) in old { UserDefaults.standard.set(value, forKey: key) }
 }
+#endif
 
 let args = CommandLine.arguments
 if let i = args.firstIndex(of: "--render"), i + 1 < args.count {
     _ = NSApplication.shared
     Render.run(to: args[i + 1])
+    #if os(macOS)
     Render.settings(to: args[i + 1].replacingOccurrences(of: ".png", with: "-settings.png"))
+    #endif
     exit(0)
 }
 
@@ -55,6 +63,33 @@ if args.contains("--screens-test") {
     exit(0)
 }
 
+if args.contains("--system-test") {
+    // Developer helper: prints what the pet can tell about the computer (idle time, typing, CPU, battery,
+    // the Dock or taskbar, the windows it could stand on) every second, for `--system-test 10` seconds.
+    _ = NSApplication.shared
+    let seconds = args.firstIndex(of: "--system-test").flatMap { args.indices.contains($0 + 1) ? Int(args[$0 + 1]) : nil } ?? 5
+    #if os(Windows)
+    KeyCounter.shared.start()
+    #endif
+    var cpu = SystemInfo.cpuTicks()
+    for s in NSScreen.screens { print("screen \(s.frame) visible \(s.visibleFrame)") }
+    print("Google Calendar client built in: \(GoogleCalendar.bundledClientID.isEmpty ? "no" : "yes")")
+    for i in 0..<seconds {
+        RunLoop.main.run(until: Date().addingTimeInterval(1))
+        let now = SystemInfo.cpuTicks()
+        var load = -1.0
+        if let a = cpu, let b = now, b.total > a.total { load = (b.busy - a.busy) / (b.total - a.total) }
+        cpu = now
+        let f = NSScreen.screens[0].visibleFrame
+        let battery = SystemInfo.battery().map { "\($0.level)%\($0.charging ? " charging" : "")" } ?? "none"
+        print(String(format: "%2ds idle %.1fs, keys %u, cpu %.0f%%, battery %@, dock/taskbar showing %@", i + 1,
+                     SystemInfo.userIdleSeconds(), SystemInfo.keyPressCount(), load * 100, battery,
+                     WindowScanner.dockIsShowing() ? "yes" : "no"))
+        for p in WindowScanner.platforms(in: f) { print("   window to stand on: x \(Int(p.minX))…\(Int(p.maxX)), top \(Int(p.top))") }
+    }
+    exit(0)
+}
+
 if args.contains("--audio-test") {
     // Developer helper: prints what the audio watcher detects (for 12 seconds, or `--audio-test 60`).
     let w = AudioWatcher.shared
@@ -78,9 +113,13 @@ if args.contains("--audio-test") {
     exit(0)
 }
 
+#if os(macOS)
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
 app.setActivationPolicy(.accessory)   // no Dock icon
 EditMenu.install()                    // copy / paste shortcuts in text fields
 app.run()
+#else
+WindowsApp.run()
+#endif

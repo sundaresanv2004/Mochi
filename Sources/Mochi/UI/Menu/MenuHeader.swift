@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 
 /// The compact card at the top of the menu bar dropdown: who the pet is and how it's doing.
@@ -24,3 +25,5 @@ struct MenuHeader: View {
         .frame(width: 230)
     }
 }
+
+#endif
